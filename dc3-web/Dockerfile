@@ -1,0 +1,55 @@
+#
+# Copyright 2016-present the IoT DC3 original author or authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# builder
+# Build context is the repository root so that dc3/dependencies/ (nginx
+# configs) is reachable at runtime.
+# --platform=$BUILDPLATFORM keeps the vite build on the host arch: vite 8's
+# rolldown native binary dies silently under QEMU arm64 emulation
+# ("transforming..." then exit 1 with no error). The dist/ output is
+# platform-agnostic static files, so only the nginx runtime stage is ever
+# emulated.
+FROM --platform=$BUILDPLATFORM pnoker/dc3-node:2025.9 AS builder
+LABEL dc3.author=pnokers
+LABEL dc3.author.email=pnokers.icloud.com
+
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+
+WORKDIR /build
+
+COPY dc3-web/ ./
+
+# pnpm 12 dropped bin/pnpm.cjs while the corepack shim bundled with Node 22
+# still expects it, so corepack prepare fails at first pnpm invocation; install
+# pnpm directly so the bin entry resolves.
+RUN npm install -g pnpm@12.3.4
+RUN apk add --no-cache git
+RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm build
+
+# runtime
+FROM pnoker/dc3-nginx:2025.9 AS runtime
+LABEL dc3.author=pnokers
+LABEL dc3.author.email=pnokers.icloud.com
+
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+
+COPY dc3/dependencies/nginx/ /etc/nginx/
+COPY --from=builder /build/dist/ /usr/share/nginx/html/
+EXPOSE 80
+VOLUME /var/log/nginx
+
+CMD envsubst '${APP_API_HOST} ${APP_API_PORT}' < /etc/nginx/location/default.env > /etc/nginx/location/default.conf ; nginx -g "daemon off;"

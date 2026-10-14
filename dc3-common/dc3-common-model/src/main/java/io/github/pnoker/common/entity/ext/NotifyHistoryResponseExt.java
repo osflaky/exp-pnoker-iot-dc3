@@ -1,0 +1,83 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.entity.ext;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.Map;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+/**
+ * Notification delivery response Ext.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(
+        description =
+                "Notification delivery response extension object, embedded inside the notification history VO extension field")
+public class NotifyHistoryResponseExt extends BaseExt {
+
+    /**
+     * Extended content.
+     */
+    @Schema(description = "Extended content describing the channel provider response of a notification delivery")
+    private Content content;
+
+    /**
+     * Response payload schema extension for notify history calls.
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "Channel provider response content returned when delivering a notification")
+    public static class Content {
+
+        /**
+         * Provider message ID when the channel returns one.
+         */
+        @Schema(
+                description = "Provider-assigned message ID returned by the channel for this delivery, when available",
+                example = "MSG-20250618-0001")
+        private String providerMessageId;
+
+        /**
+         * Provider status code.
+         */
+        @Schema(description = "Provider status code returned by the channel for this delivery", example = "200")
+        private Integer statusCode;
+
+        /**
+         * Provider status message.
+         */
+        @Schema(description = "Provider status message returned by the channel for this delivery", example = "OK")
+        private String statusMessage;
+
+        /**
+         * Provider response payload.
+         */
+        @Schema(description = "Raw provider response payload as a key-value map")
+        private Map<String, Object> payload;
+    }
+}

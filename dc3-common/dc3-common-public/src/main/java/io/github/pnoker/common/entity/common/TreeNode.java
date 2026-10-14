@@ -1,0 +1,59 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.entity.common;
+
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import lombok.Getter;
+import lombok.Setter;
+
+/**
+ * Generic tree node with parent-child relationships.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Getter
+@Setter
+public class TreeNode implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    /** Node identifier. */
+    private int id;
+
+    /** Parent node identifier. */
+    private int parentId;
+
+    /** Mutable child-node collection. */
+    private List<TreeNode> children = new ArrayList<>(16);
+
+    /** Create an empty tree node. */
+    public TreeNode() {}
+
+    /**
+     * Add child node to current node
+     *
+     * @param node Tree node to add as child
+     */
+    public void add(TreeNode node) {
+        children.add(node);
+    }
+}

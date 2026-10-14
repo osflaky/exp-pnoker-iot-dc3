@@ -1,0 +1,133 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.manager.grpc.builder;
+
+import io.github.pnoker.api.center.manager.GrpcOffsetDeviceQuery;
+import io.github.pnoker.api.common.GrpcBase;
+import io.github.pnoker.api.common.GrpcDeviceDTO;
+import io.github.pnoker.common.constant.common.DefaultConstant;
+import io.github.pnoker.common.enums.EnableFlagEnum;
+import io.github.pnoker.common.manager.entity.bo.DeviceBO;
+import io.github.pnoker.common.manager.repository.DeviceFilter;
+import io.github.pnoker.common.utils.GrpcBuilderUtil;
+import io.github.pnoker.common.utils.JsonUtil;
+import io.github.pnoker.common.utils.MapStructUtil;
+import io.github.pnoker.db.core.page.SortSpec;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import org.mapstruct.AfterMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
+/**
+ * MapStruct builder for device gRPC message conversion.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Mapper(
+        componentModel = "spring",
+        uses = {MapStructUtil.class})
+public interface GrpcDeviceBuilder {
+
+    /** Convert and validate the canonical offset query used by the reactive RPC. */
+    default DeviceFilter buildFilterByGrpcQuery(GrpcOffsetDeviceQuery request) {
+        if (request == null) {
+            throw new IllegalArgumentException("device query is required");
+        }
+        io.github.pnoker.api.common.PageRequest page = request.hasPage()
+                ? request.getPage()
+                : io.github.pnoker.api.common.PageRequest.newBuilder()
+                        .setLimit(50)
+                        .build();
+        long offset = page.getOffset();
+        int limit = page.getLimit() <= 0 ? 50 : page.getLimit();
+        List<SortSpec> sort = new ArrayList<>();
+        for (io.github.pnoker.api.common.SortSpec spec : page.getSortList()) {
+            if (spec.getField().isBlank()
+                    || spec.getDirection() == io.github.pnoker.api.common.SortDirection.SORT_DIRECTION_UNSPECIFIED) {
+                throw new IllegalArgumentException("sort field and direction are required");
+            }
+            sort.add(new SortSpec(
+                    spec.getField(),
+                    spec.getDirection() == io.github.pnoker.api.common.SortDirection.SORT_DIRECTION_DESC
+                            ? SortSpec.Direction.DESC
+                            : SortSpec.Direction.ASC));
+        }
+        return new DeviceFilter(
+                request.getTenantId(),
+                request.getDeviceName(),
+                request.getDeviceCode(),
+                request.hasDriverId() ? request.getDriverId() : null,
+                request.hasProfileId() ? request.getProfileId() : null,
+                request.hasEnableFlag() ? EnableFlagEnum.ofIndex((byte) request.getEnableFlag()) : null,
+                request.hasVersion() ? request.getVersion() : null,
+                request.hasGroupId() ? request.getGroupId() : null,
+                request.hasLabelId() ? request.getLabelId() : null,
+                offset,
+                limit,
+                sort);
+    }
+
+    /**
+     * BO to Grpc DTO
+     *
+     * @param entityBO DeviceBO
+     * @return GrpcDeviceDTO
+     */
+    @Mapping(target = "deviceExt", ignore = true)
+    @Mapping(target = "profileIdsList", ignore = true)
+    @Mapping(target = "enableFlag", ignore = true)
+    @Mapping(target = "deviceNameBytes", ignore = true)
+    @Mapping(target = "deviceCodeBytes", ignore = true)
+    @Mapping(target = "deviceExtBytes", ignore = true)
+    @Mapping(target = "signatureBytes", ignore = true)
+    @Mapping(target = "mergeFrom", ignore = true)
+    @Mapping(target = "clearField", ignore = true)
+    @Mapping(target = "clearOneof", ignore = true)
+    @Mapping(target = "base", ignore = true)
+    @Mapping(target = "mergeBase", ignore = true)
+    @Mapping(target = "unknownFields", ignore = true)
+    @Mapping(target = "mergeUnknownFields", ignore = true)
+    @Mapping(target = "allFields", ignore = true)
+    GrpcDeviceDTO buildGrpcDTOByBO(DeviceBO entityBO);
+
+    /**
+     * After process.
+     *
+     * @param entityBO   business object
+     * @param entityGrpc entity grpc
+     */
+    @AfterMapping
+    default void afterProcess(DeviceBO entityBO, @MappingTarget GrpcDeviceDTO.Builder entityGrpc) {
+        GrpcBase grpcBase = GrpcBuilderUtil.buildGrpcBaseByBO(entityBO);
+        entityGrpc.setBase(grpcBase);
+
+        if (Objects.nonNull(entityBO.getProfileId())) {
+            entityGrpc.addAllProfileIds(List.of(entityBO.getProfileId()));
+        }
+        Optional.ofNullable(entityBO.getDeviceExt())
+                .ifPresent(value -> entityGrpc.setDeviceExt(JsonUtil.toJsonString(value)));
+        Optional.ofNullable(entityBO.getEnableFlag())
+                .ifPresentOrElse(
+                        value -> entityGrpc.setEnableFlag(value.getIndex()),
+                        () -> entityGrpc.setEnableFlag(DefaultConstant.DEFAULT_INT));
+    }
+}

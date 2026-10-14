@@ -1,0 +1,84 @@
+#
+# Copyright 2016-present the IoT DC3 original author or authors.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
+dc3:
+  driver:
+    tenant: default
+    name: PLC S7 Driver
+    code: PlcS7Driver
+    type: DRIVER_CLIENT
+    remark: @project.description@
+    schedule:
+      # Read data regularly
+      read:
+        enable: true
+        cron: '0/30 * * * * ?'
+      custom:
+        enable: false
+        cron: '0/5 * * * * ?'
+    health:
+      device:
+        enable: true
+        cron: '0/15 * * * * ?'
+        timeout: 45
+        timeout-unit: SECONDS
+    driver-attribute:
+      - attribute-name: Host
+        attribute-code: host
+        attribute-type-flag: STRING
+        default-value: 192.168.0.20
+        remark: Ip
+      - attribute-name: Port
+        attribute-code: port
+        attribute-type-flag: INT
+        default-value: 102
+        remark: Port
+      - attribute-name: PLC Type
+        attribute-code: plcType
+        attribute-type-flag: STRING
+        default-value: S1200
+        remark: PLC model (S200/S200_SMART/S300/S400/S1200/S1500/SINUMERIK_828D)
+    point-attribute:
+      - attribute-name: DB Number
+        attribute-code: dbNum
+        attribute-type-flag: INT
+        default-value: 0
+        remark: Data block number, counted from 0
+      - attribute-name: Byte Offset
+        attribute-code: byteOffset
+        attribute-type-flag: INT
+        default-value: 0
+        remark: Byte offset
+      - attribute-name: Bit Offset
+        attribute-code: bitOffset
+        attribute-type-flag: INT
+        default-value: 0
+        remark: Bit offset (only used for boolean type)
+
+    buffer:
+      db-path: dc3/data/driver/plcs7/buffer.db
+
+spring:
+  application:
+    name: @project.artifactId@
+  profiles:
+    active:
+      - ${NODE_ENV:dev}
+
+logging:
+  file:
+    name: dc3/logs/driver/plcs7/${spring.application.name}.log

@@ -1,0 +1,104 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.enums;
+
+import java.util.Arrays;
+import java.util.Optional;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+/**
+ * Enumeration of profile type flags.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Getter
+@AllArgsConstructor
+public enum ProfileTypeEnum {
+
+    /**
+     * Created by system
+     */
+    SYSTEM((byte) 0, "system", "Created by system"),
+
+    /**
+     * Created by driver
+     */
+    DRIVER((byte) 1, "driver", "Created by driver"),
+
+    /**
+     * Created by user
+     */
+    USER((byte) 2, "user", "Created by user"),
+    ;
+
+    /**
+     * Index
+     */
+    private final Byte index;
+
+    /**
+     * Code
+     */
+    private final String code;
+
+    /**
+     * Remark
+     */
+    private final String remark;
+
+    /**
+     * Get enum by index
+     *
+     * @param index Index
+     * @return {@link ProfileTypeEnum}
+     */
+    public static ProfileTypeEnum ofIndex(Byte index) {
+        Optional<ProfileTypeEnum> any = Arrays.stream(ProfileTypeEnum.values())
+                .filter(type -> type.getIndex().equals(index))
+                .findFirst();
+        return any.orElse(null);
+    }
+
+    /**
+     * Get enum by code
+     *
+     * @param code Code
+     * @return {@link ProfileTypeEnum}
+     */
+    public static ProfileTypeEnum ofCode(String code) {
+        Optional<ProfileTypeEnum> any = Arrays.stream(ProfileTypeEnum.values())
+                .filter(type -> type.getCode().equals(code))
+                .findFirst();
+        return any.orElse(null);
+    }
+
+    /**
+     * Get enum by name
+     *
+     * @param name Name
+     * @return {@link ProfileTypeEnum}
+     */
+    public static ProfileTypeEnum ofName(String name) {
+        try {
+            return valueOf(name);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+}

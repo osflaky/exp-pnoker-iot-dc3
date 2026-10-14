@@ -1,0 +1,230 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.gateway.filter;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
+import io.github.pnoker.common.constant.common.RequestConstant;
+import io.github.pnoker.common.entity.common.RequestHeader;
+import io.github.pnoker.common.exception.UnAuthorizedException;
+import io.github.pnoker.common.facade.entity.bo.FacadeLocalCredentialBO;
+import io.github.pnoker.common.facade.entity.bo.FacadeTenantBO;
+import io.github.pnoker.common.gateway.service.FilterService;
+import io.github.pnoker.common.utils.HmacAuthSigner;
+import java.net.ConnectException;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cloud.gateway.filter.GatewayFilterChain;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
+import org.springframework.mock.web.server.MockServerWebExchange;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
+
+@ExtendWith(MockitoExtension.class)
+class AuthenticGatewayFilterTest {
+
+    @Mock
+    private FilterService filterService;
+
+    private RequestHeader.PrincipalHeader user;
+    private FacadeLocalCredentialBO credential;
+    private FacadeTenantBO tenant;
+
+    private static MockServerWebExchange exchange() {
+        return MockServerWebExchange.from(
+                MockServerHttpRequest.get("/api/manager/devices").build());
+    }
+
+    private static GatewayFilterChain capturingChain(AtomicReference<ServerWebExchange> capture) {
+        return ex -> {
+            capture.set(ex);
+            return Mono.empty();
+        };
+    }
+
+    private AuthenticGatewayFilter filter(boolean signingEnabled) {
+        return new AuthenticGatewayFilter(
+                filterService, new HmacAuthSigner(signingEnabled ? "test-secret" : null), provider(null));
+    }
+
+    private static org.springframework.beans.factory.ObjectProvider<
+                    io.github.pnoker.common.gateway.security.OAuthTokenResolver>
+            provider(io.github.pnoker.common.gateway.security.OAuthTokenResolver resolver) {
+        return new org.springframework.beans.factory.ObjectProvider<>() {
+            @Override
+            public io.github.pnoker.common.gateway.security.OAuthTokenResolver getObject() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public io.github.pnoker.common.gateway.security.OAuthTokenResolver getIfAvailable() {
+                return resolver;
+            }
+        };
+    }
+
+    @BeforeEach
+    void setUp() {
+        user = new RequestHeader.PrincipalHeader(100L, "USER", "Alice", "alice", 1L, null, null, null);
+        credential = new FacadeLocalCredentialBO();
+        credential.setLoginName("alice");
+        credential.setPrincipalId(100L);
+        tenant = new FacadeTenantBO();
+        tenant.setTenantName("Acme");
+        tenant.setId(1L);
+        tenant.setTenantCode("acme");
+    }
+
+    private void stubSuccessfulAuthentication() {
+        when(filterService.getTenantReactive(any())).thenReturn(Mono.just(tenant));
+        when(filterService.getLocalCredentialReactive(any(), any())).thenReturn(Mono.just(credential));
+        when(filterService.checkValidReactive(any(), any(), any())).thenReturn(Mono.empty());
+        when(filterService.getUserReactive(credential, tenant)).thenReturn(Mono.just(user));
+    }
+
+    @Test
+    void writesXAuthPrincipalAndStripsXAuthSignWhenSigningDisabled() {
+        stubSuccessfulAuthentication();
+
+        AtomicReference<ServerWebExchange> capture = new AtomicReference<>();
+        MockServerWebExchange initial = MockServerWebExchange.from(MockServerHttpRequest.get("/foo")
+                .header(RequestConstant.Header.X_AUTH_SIGN, "smuggled-by-client")
+                .build());
+
+        filter(false).filter(initial, capturingChain(capture)).block();
+
+        HttpHeaders forwarded = capture.get().getRequest().getHeaders();
+        assertThat(forwarded.getFirst(RequestConstant.Header.X_AUTH_PRINCIPAL)).contains("\"principalName\":\"alice\"");
+        assertThat(forwarded.getFirst(RequestConstant.Header.X_AUTH_SIGN)).isNull();
+    }
+
+    @Test
+    void writesHmacSignedHeaderWhenSigningEnabled() {
+        stubSuccessfulAuthentication();
+
+        AtomicReference<ServerWebExchange> capture = new AtomicReference<>();
+        filter(true).filter(exchange(), capturingChain(capture)).block();
+
+        HttpHeaders forwarded = capture.get().getRequest().getHeaders();
+        String userJson = forwarded.getFirst(RequestConstant.Header.X_AUTH_PRINCIPAL);
+        String sign = forwarded.getFirst(RequestConstant.Header.X_AUTH_SIGN);
+        assertThat(userJson).isNotNull();
+        assertThat(sign).matches("[0-9a-f]{64}");
+        // Signature must verify using the same shared secret.
+        assertThat(new HmacAuthSigner("test-secret").verify(userJson, sign)).isTrue();
+    }
+
+    @Test
+    void responsesAreUnauthorizedWhenFilterServiceThrowsUnauthorized() {
+        when(filterService.getTenantReactive(any())).thenReturn(Mono.just(tenant));
+        when(filterService.getLocalCredentialReactive(any(), any())).thenReturn(Mono.just(credential));
+        when(filterService.checkValidReactive(any(), any(), any()))
+                .thenReturn(Mono.error(new UnAuthorizedException("token rejected")));
+
+        MockServerWebExchange ex = exchange();
+        AtomicReference<ServerWebExchange> capture = new AtomicReference<>();
+        filter(false).filter(ex, capturingChain(capture)).block();
+
+        assertThat(ex.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(ex.getResponse().getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(capture.get()).isNull();
+    }
+
+    @Test
+    void responsesAreInternalServerErrorOnUnexpectedException() {
+        when(filterService.getTenantReactive(any())).thenReturn(Mono.error(new RuntimeException("boom")));
+
+        MockServerWebExchange ex = exchange();
+        AtomicReference<ServerWebExchange> capture = new AtomicReference<>();
+        filter(false).filter(ex, capturingChain(capture)).block();
+
+        assertThat(ex.getResponse().getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(capture.get()).isNull();
+    }
+
+    @Test
+    void responsesAreServiceUnavailableWhenRouteConnectFailsAfterAuthentication() {
+        stubSuccessfulAuthentication();
+
+        // Authentication succeeds, then the routed backend (e.g. a center that is not
+        // running) refuses the connection; the failure must surface as 503, not as an
+        // authentication error answered with 500.
+        AtomicReference<ServerWebExchange> capture = new AtomicReference<>();
+        GatewayFilterChain unreachableChain = ex -> {
+            capture.set(ex);
+            return Mono.error(new ConnectException("Connection refused: localhost/127.0.0.1:8600"));
+        };
+
+        MockServerWebExchange ex = exchange();
+        filter(false).filter(ex, unreachableChain).block();
+
+        assertThat(ex.getResponse().getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(capture.get()).isNotNull();
+    }
+
+    @Test
+    void filterShortCircuitsAuthLookupOnFailFastValidation() {
+        when(filterService.getTenantReactive(any())).thenReturn(Mono.empty());
+
+        AtomicReference<ServerWebExchange> capture = new AtomicReference<>();
+        filter(false).filter(exchange(), capturingChain(capture)).block();
+
+        assertThat(capture.get()).isNull();
+    }
+
+    @Test
+    void oauthBearerTicketIsResolvedAndForwardedWithScopes() {
+        io.github.pnoker.common.gateway.security.OAuthTokenResolver resolver =
+                org.mockito.Mockito.mock(io.github.pnoker.common.gateway.security.OAuthTokenResolver.class);
+        RequestHeader.PrincipalHeader serviceAccount = new RequestHeader.PrincipalHeader(
+                1L,
+                "SERVICE_ACCOUNT",
+                null,
+                "cli-e2e",
+                1L,
+                null,
+                null,
+                java.util.List.of("mcp:tools:list", "mcp:tools:call"));
+        when(resolver.resolve(org.mockito.ArgumentMatchers.anyString())).thenReturn(serviceAccount);
+
+        AtomicReference<ServerWebExchange> capture = new AtomicReference<>();
+        MockServerWebExchange initial =
+                MockServerWebExchange.from(MockServerHttpRequest.get("/api/v3/manager/device/list")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer rs256-ticket")
+                        .build());
+
+        new AuthenticGatewayFilter(filterService, new HmacAuthSigner(null), provider(resolver))
+                .filter(initial, capturingChain(capture))
+                .block();
+
+        HttpHeaders forwarded = capture.get().getRequest().getHeaders();
+        assertThat(forwarded.getFirst(RequestConstant.Header.X_AUTH_PRINCIPAL))
+                .contains("SERVICE_ACCOUNT")
+                .contains("mcp:tools:call");
+        org.mockito.Mockito.verify(filterService, org.mockito.Mockito.never())
+                .getTenantReactive(org.mockito.ArgumentMatchers.any());
+    }
+}

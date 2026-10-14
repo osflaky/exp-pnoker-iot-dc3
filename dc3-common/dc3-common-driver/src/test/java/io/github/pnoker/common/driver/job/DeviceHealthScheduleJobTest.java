@@ -1,0 +1,184 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.driver.job;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+import io.github.pnoker.common.driver.entity.bean.DeviceHealthState;
+import io.github.pnoker.common.driver.entity.bo.DeviceBO;
+import io.github.pnoker.common.driver.entity.dto.DriverAttributeDTO;
+import io.github.pnoker.common.driver.entity.property.DriverProperties;
+import io.github.pnoker.common.driver.metadata.DeviceMetadata;
+import io.github.pnoker.common.driver.metadata.DriverMetadata;
+import io.github.pnoker.common.driver.service.DriverCustomService;
+import io.github.pnoker.common.driver.service.DriverSenderService;
+import io.github.pnoker.common.enums.EnableFlagEnum;
+import io.github.pnoker.common.enums.EntityStatusEnum;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.quartz.JobExecutionContext;
+
+@ExtendWith(MockitoExtension.class)
+class DeviceHealthScheduleJobTest {
+
+    @Mock
+    private DeviceMetadata deviceMetadata;
+
+    @Mock
+    private DriverCustomService driverCustomService;
+
+    @Mock
+    private DriverSenderService driverSenderService;
+
+    @Mock
+    private JobExecutionContext jobContext;
+
+    private DriverProperties driverProperties;
+    private DriverMetadata driverMetadata;
+    private DeviceHealthScheduleJob job;
+
+    private static DeviceBO enabledDevice(Long id) {
+        DeviceBO device = new DeviceBO();
+        device.setId(id);
+        device.setEnableFlag(EnableFlagEnum.ENABLE);
+        return device;
+    }
+
+    @BeforeEach
+    void setUp() {
+        driverProperties = new DriverProperties();
+        driverProperties.getHealth().getDevice().setTimeout(60);
+        driverProperties.getHealth().getDevice().setTimeoutUnit(TimeUnit.SECONDS);
+        driverMetadata = new DriverMetadata();
+        job = new DeviceHealthScheduleJob(
+                driverProperties, driverMetadata, deviceMetadata, driverCustomService, driverSenderService);
+    }
+
+    @Test
+    void reportsOnlineWhenDeviceHealthReturnsOnline() {
+        DeviceBO device = enabledDevice(10L);
+        installDeviceLease(10L);
+        when(deviceMetadata.getCache(10L)).thenReturn(device);
+        when(deviceMetadata.getDriverConfig(10L)).thenReturn(Map.of());
+        when(driverCustomService.health(Map.of(), device)).thenReturn(DeviceHealthState.online());
+
+        job.executeInternal(jobContext);
+
+        verify(driverSenderService)
+                .deviceStatusSender(eq(10L), eq(EntityStatusEnum.ONLINE), eq(60), eq(TimeUnit.SECONDS), isNull());
+    }
+
+    @Test
+    void reportsOfflineWhenDeviceHealthReturnsOffline() {
+        DeviceBO device = enabledDevice(11L);
+        installDeviceLease(11L);
+        when(deviceMetadata.getCache(11L)).thenReturn(device);
+        when(deviceMetadata.getDriverConfig(11L)).thenReturn(Map.of());
+        when(driverCustomService.health(Map.of(), device)).thenReturn(DeviceHealthState.offline());
+
+        job.executeInternal(jobContext);
+
+        verify(driverSenderService)
+                .deviceStatusSender(eq(11L), eq(EntityStatusEnum.OFFLINE), eq(60), eq(TimeUnit.SECONDS), isNull());
+    }
+
+    @Test
+    void reportsFaultWhenDeviceHealthReturnsFault() {
+        DeviceBO device = enabledDevice(16L);
+        installDeviceLease(16L);
+        when(deviceMetadata.getCache(16L)).thenReturn(device);
+        when(deviceMetadata.getDriverConfig(16L)).thenReturn(Map.of());
+        when(driverCustomService.health(Map.of(), device)).thenReturn(DeviceHealthState.fault());
+
+        job.executeInternal(jobContext);
+
+        verify(driverSenderService)
+                .deviceStatusSender(eq(16L), eq(EntityStatusEnum.FAULT), eq(60), eq(TimeUnit.SECONDS), isNull());
+    }
+
+    @Test
+    void reportsOfflineWhenDeviceHealthThrows() {
+        DeviceBO device = enabledDevice(12L);
+        installDeviceLease(12L);
+        when(deviceMetadata.getCache(12L)).thenReturn(device);
+        when(deviceMetadata.getDriverConfig(12L)).thenReturn(Map.of());
+        doThrow(new IllegalStateException("session down"))
+                .when(driverCustomService)
+                .health(Map.of(), device);
+
+        job.executeInternal(jobContext);
+
+        verify(driverSenderService)
+                .deviceStatusSender(eq(12L), eq(EntityStatusEnum.OFFLINE), eq(60), eq(TimeUnit.SECONDS), isNull());
+    }
+
+    @Test
+    void reportsDeviceSpecificTimeoutWhenProvidedByHealthHook() {
+        DeviceBO device = enabledDevice(15L);
+        installDeviceLease(15L);
+        when(deviceMetadata.getCache(15L)).thenReturn(device);
+        when(deviceMetadata.getDriverConfig(15L)).thenReturn(Map.of());
+        when(driverCustomService.health(Map.of(), device)).thenReturn(DeviceHealthState.online(2, TimeUnit.MINUTES));
+
+        job.executeInternal(jobContext);
+
+        verify(driverSenderService)
+                .deviceStatusSender(eq(15L), eq(EntityStatusEnum.ONLINE), eq(2), eq(TimeUnit.MINUTES), isNull());
+    }
+
+    @Test
+    void skipsDisabledDevice() {
+        DeviceBO device = enabledDevice(13L);
+        device.setEnableFlag(EnableFlagEnum.DISABLE);
+        installDeviceLease(13L);
+        when(deviceMetadata.getCache(13L)).thenReturn(device);
+
+        job.executeInternal(jobContext);
+
+        verifyNoInteractions(driverCustomService, driverSenderService);
+    }
+
+    @Test
+    void skipsDeviceWhenRequiredDriverConfigIsIncomplete() {
+        driverMetadata.getDriverAttributeIdMap().put(1L, new DriverAttributeDTO());
+        DeviceBO device = enabledDevice(14L);
+        installDeviceLease(14L);
+        when(deviceMetadata.getCache(14L)).thenReturn(device);
+        when(deviceMetadata.getDriverConfig(14L)).thenReturn(Map.of());
+
+        job.executeInternal(jobContext);
+
+        verify(driverCustomService, never()).health(any(), any());
+        verifyNoInteractions(driverSenderService);
+    }
+
+    private void installDeviceLease(long deviceId) {
+        driverMetadata.setDeviceLeases(Map.of(deviceId, 1L), System.currentTimeMillis() + 60_000, 1L);
+    }
+}

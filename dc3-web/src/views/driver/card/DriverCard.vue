@@ -1,0 +1,166 @@
+<!--
+  - Copyright 2016-present the IoT DC3 original author or authors.
+  -
+  - This program is free software: you can redistribute it and/or modify
+  - it under the terms of the GNU Affero General Public License as
+  - published by the Free Software Foundation, either version 3 of the
+  - License, or (at your option) any later version.
+  -
+  - This program is distributed in the hope that it will be useful,
+  - but WITHOUT ANY WARRANTY; without even the implied warranty of
+  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  - GNU Affero General Public License for more details.
+  -
+  - You should have received a copy of the GNU Affero General Public License
+  - along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  -->
+
+<template>
+  <div class="things-card">
+    <el-card shadow="hover">
+      <div class="things-card-content">
+        <things-card-header
+          :enabled="enabled"
+          :icon="icon"
+          tone="blue"
+          :name="data.driverName"
+          :status-title="$t('common.name')"
+          :copy-label="$t('driver.card.copyDriverId')"
+          @copy-id="copy(data.id, $t('driver.card.copyDriverId'))"
+        >
+          <el-tag :type="statusTagType" effect="plain">{{ $t(statusLabelKey) }}</el-tag>
+        </things-card-header>
+        <div class="things-card__body">
+          <div class="things-card-body-content">
+            <ul>
+              <li class="nowrap-item">
+                <el-icon>
+                  <Monitor/>
+                </el-icon>
+                {{ $t('driver.card.host') }}: {{ data.serviceHost }}
+              </li>
+              <li class="nowrap-item">
+                <el-icon>
+                  <Promotion/>
+                </el-icon>
+                {{ $t('driver.card.driverService') }}: {{ data.serviceName }}
+              </li>
+              <li class="nowrap-item">
+                <el-icon>
+                  <Edit/>
+                </el-icon>
+                {{ $t('common.operationTime') }}: {{ timestamp(data.operateTime || '') }}
+              </li>
+              <li class="nowrap-item">
+                <el-icon>
+                  <Sunset/>
+                </el-icon>
+                {{ $t('common.createTime') }}: {{ timestamp(data.createTime || '') }}
+              </li>
+            </ul>
+          </div>
+          <div :title="data.remark || $t('driver.card.remarkTitle')" class="things-card-body-content">
+            <p class="nowrap-description">
+              {{ data.remark || $t('common.noDescription') }}
+            </p>
+          </div>
+        </div>
+        <!-- Action order follows the system-wide card footer contract:
+             detail (browse) → delete (destructive last). -->
+        <div v-if="!footer" :aria-busy="busy" class="things-card__footer">
+          <div class="things-card-footer-operation">
+            <el-button :disabled="busy" link type="primary" @click.stop="detail">
+              {{ $t('common.detail') }}
+            </el-button>
+            <el-popconfirm
+              :disabled="busy"
+              :title="$t('common.confirmDelete', {name: $t('common.entityDriver')})"
+              @confirm="emitDelete"
+            >
+              <template #reference>
+                <el-button :disabled="busy" :loading="busy" link type="primary" @click.stop>
+                  {{ $t('common.delete') }}
+                </el-button>
+              </template>
+            </el-popconfirm>
+          </div>
+        </div>
+      </div>
+    </el-card>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import type {PropType} from 'vue';
+import {computed} from 'vue';
+import {Edit, Monitor, Promotion, Sunset} from '@element-plus/icons-vue';
+import router from '@/config/router';
+import {copy} from '@/utils/commonUtil';
+import {timestamp} from '@/utils/dateUtil';
+import {isEnabledFlag} from '@/utils/thingModelFormatUtil';
+import ThingsCardHeader from '@/components/card/header/ThingsCardHeader.vue';
+import type {DriverRecord} from '@/config/types/manager';
+
+const props = defineProps({
+  icon: {type: String, default: 'Promotion'},
+  statusTable: {type: Object as PropType<Record<string, string>>, default: () => ({})},
+  data: {type: Object as PropType<DriverRecord>, required: true},
+  footer: {type: Boolean, default: false},
+  busy: {type: Boolean, default: false},
+});
+
+const emit = defineEmits(['delete']);
+const enabled = computed(() => isEnabledFlag(props.data.enableFlag));
+
+const status = computed(() => {
+  const id = props.data.id;
+  // The status map carries lowercase enum codes; normalize before comparing.
+  return id && props.statusTable[id] ? String(props.statusTable[id]).trim().toUpperCase() : 'OFFLINE';
+});
+
+const statusTagType = computed(() => {
+  if (status.value === 'ONLINE') return 'success';
+  if (status.value === 'MAINTAIN') return 'warning';
+  if (status.value === 'FAULT') return 'danger';
+  return 'info';
+});
+
+const statusLabelKey = computed(() => {
+  if (status.value === 'ONLINE') return 'status.online';
+  if (status.value === 'MAINTAIN') return 'status.maintain';
+  if (status.value === 'FAULT') return 'status.fault';
+  return 'status.offline';
+});
+
+const emitDelete = () => {
+  emit('delete', props.data);
+};
+
+const detail = () => {
+  const id = props.data.id;
+  if (id) {
+    router.push({name: 'driverDetail', query: {id, active: 'detail'}}).catch(() => {
+      // nothing to do
+    });
+  }
+};
+</script>
+
+<style lang="scss" scoped>
+@use '@/views/driver/card/style.scss';
+
+// DriverCard has one detail action and therefore owns its compact footer styling.
+.things-card__footer {
+  height: 35px;
+  margin-top: 2px;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--el-border-color);
+
+  .things-card-footer-operation {
+    height: 35px;
+    display: flex;
+  }
+}
+</style>

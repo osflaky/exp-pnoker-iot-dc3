@@ -1,0 +1,196 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package org.openscada.opc.lib.da;
+
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * @author pnoker
+ * @version 2025.9.0
+ * @since 2016.10.1
+ */
+@Slf4j
+public class AutoReconnectController implements ServerConnectionStateListener {
+
+    private static final int DEFAULT_DELAY = 5 * 1000;
+
+    private final Server _server;
+
+    private final Set<AutoReconnectListener> _listeners = new CopyOnWriteArraySet<AutoReconnectListener>();
+
+    private int _delay;
+
+    private AutoReconnectState _state = AutoReconnectState.DISABLED;
+
+    private Thread _connectTask = null;
+
+    public AutoReconnectController(final Server server) {
+        this(server, DEFAULT_DELAY);
+    }
+
+    public AutoReconnectController(final Server server, final int delay) {
+        super();
+        setDelay(delay);
+
+        this._server = server;
+        this._server.addStateListener(this);
+    }
+
+    public void addListener(final AutoReconnectListener listener) {
+        if (listener != null) {
+            this._listeners.add(listener);
+            listener.stateChanged(this._state);
+        }
+    }
+
+    public void removeListener(final AutoReconnectListener listener) {
+        this._listeners.remove(listener);
+    }
+
+    protected void notifyStateChange(final AutoReconnectState state) {
+        this._state = state;
+        for (AutoReconnectListener listener : this._listeners) {
+            listener.stateChanged(state);
+        }
+    }
+
+    public int getDelay() {
+        return this._delay;
+    }
+
+    /**
+     * Set the reconnect delay. If the delay less than or equal to zero it will be the
+     * default delay time.
+     *
+     * @param delay The delay to use
+     */
+    public void setDelay(int delay) {
+        if (delay <= 0) {
+            delay = DEFAULT_DELAY;
+        }
+        this._delay = delay;
+    }
+
+    public synchronized void connect() {
+        if (isRequested()) {
+            return;
+        }
+
+        log.debug("Requesting connection");
+        notifyStateChange(AutoReconnectState.DISCONNECTED);
+
+        triggerReconnect(false);
+    }
+
+    public synchronized void disconnect() {
+        if (!isRequested()) {
+            return;
+        }
+
+        log.debug("Un-Requesting connection");
+
+        notifyStateChange(AutoReconnectState.DISABLED);
+        this._server.disconnect();
+    }
+
+    public boolean isRequested() {
+        return this._state != AutoReconnectState.DISABLED;
+    }
+
+    @Override
+    public synchronized void connectionStateChanged(final boolean connected) {
+        log.debug("OPC DA connection state changed, connected={}", connected);
+
+        if (!connected) {
+            if (isRequested()) {
+                notifyStateChange(AutoReconnectState.DISCONNECTED);
+                triggerReconnect(true);
+            }
+        } else {
+            if (!isRequested()) {
+                this._server.disconnect();
+            } else {
+                notifyStateChange(AutoReconnectState.CONNECTED);
+            }
+        }
+    }
+
+    private synchronized void triggerReconnect(final boolean wait) {
+        if (this._connectTask != null) {
+            log.info("Connect thread already running");
+            return;
+        }
+
+        log.debug("Trigger reconnect");
+
+        this._connectTask = new Thread(
+                new Runnable() {
+
+                    @Override
+                    public void run() {
+                        boolean result = false;
+                        try {
+                            result = performReconnect(wait);
+                        } finally {
+                            AutoReconnectController.this._connectTask = null;
+                            log.debug("OPC DA reconnect attempt completed, connected={}", result);
+                            if (!result) {
+                                triggerReconnect(true);
+                            }
+                        }
+                    }
+                },
+                "OPCReconnectThread");
+        this._connectTask.setDaemon(true);
+        this._connectTask.start();
+    }
+
+    private boolean performReconnect(final boolean wait) {
+        try {
+            if (wait) {
+                notifyStateChange(AutoReconnectState.WAITING);
+                log.debug("OPC DA reconnect delayed, delayMillis={}", this._delay);
+                Thread.sleep(this._delay);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.info("OPC DA reconnect interrupted");
+            return true;
+        }
+
+        if (!isRequested()) {
+            log.debug("OPC DA reconnect canceled during delay");
+            return true;
+        }
+
+        try {
+            log.debug("Connecting to server");
+            notifyStateChange(AutoReconnectState.CONNECTING);
+            synchronized (this) {
+                this._server.connect();
+                return true;
+            }
+            // CONNECTED state will be set by server callback
+        } catch (Throwable e) {
+            log.info("Re-connect failed", e);
+            notifyStateChange(AutoReconnectState.DISCONNECTED);
+            return false;
+        }
+    }
+}

@@ -1,0 +1,55 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+syntax = "proto3";
+
+package api.common.auth;
+
+import "api/common/base.proto";
+
+// Configuration options for code generation
+option java_package = "io.github.pnoker.api.center.auth";
+option java_outer_classname = "TenantProto";
+option objc_class_prefix = "Auth";
+option java_multiple_files = true;
+
+// Service interface defining tenant-related RPC calls
+service TenantApi {
+  // Query tenant information by tenant code
+  rpc GetByCode (GrpcCodeQuery) returns (GrpcTenantDTO);
+}
+
+// Request message for querying by tenant code
+message GrpcCodeQuery {
+  // Tenant code, unique identifier of a tenant
+  string code = 1;
+}
+
+// Tenant data structure with basic information
+message GrpcTenantDTO {
+  // Common base fields (e.g., ID, creation time, etc.)
+  GrpcBase base = 1;
+
+  // Tenant name
+  string tenant_name = 2;
+
+  // Tenant code, unique identifier
+  string tenant_code = 3;
+
+  // Enable flag: 0 enabled, 1 disabled (EnableFlagEnum)
+  int32 enable_flag = 4;
+}

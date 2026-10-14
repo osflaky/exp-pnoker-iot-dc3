@@ -1,0 +1,94 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.agentic.controller;
+
+import io.github.pnoker.common.agentic.entity.builder.MessageBuilder;
+import io.github.pnoker.common.agentic.entity.vo.MessageVO;
+import io.github.pnoker.common.agentic.repository.ReactiveMessageStore;
+import io.github.pnoker.common.base.BaseController;
+import io.github.pnoker.common.constant.service.AgenticConstant;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.extensions.Extension;
+import io.swagger.v3.oas.annotations.extensions.ExtensionProperty;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Mono;
+
+/**
+ * REST controller exposing chat message history endpoints.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Tag(
+        name = "message",
+        description =
+                "Agent conversation messages: manage messages exchanged between AI agents and language models within conversation sessions including user prompts and assistant responses")
+@RestController("agenticMessageController")
+@RequestMapping(AgenticConstant.MESSAGE_URL_PREFIX)
+@RequiredArgsConstructor
+public class MessageController implements BaseController {
+
+    private final MessageBuilder messageBuilder;
+
+    private final ReactiveMessageStore messageStore;
+
+    /**
+     * List the ordered message history of one AI chat session.
+     *
+     * @param conversationId client-visible id of the conversation whose history is retrieved; scoped to the current user and tenant
+     * @return a list of MessageVO turns (user prompts and assistant replies) in chronological order
+     */
+    @PreAuthorize("@perm.can('message', 'list')")
+    @Operation(
+            summary = "List Session Messages",
+            description =
+                    "List the ordered message history of one AI chat session for the current user and tenant. "
+                            + "Returns each turn (user prompts and assistant replies) in chronological order; use to read or resume a past conversation.",
+            extensions =
+                    @Extension(
+                            name = "x-dc3-ai",
+                            properties = {
+                                @ExtensionProperty(name = "riskLevel", value = "LOW"),
+                                @ExtensionProperty(name = "destructive", value = "false"),
+                                @ExtensionProperty(name = "idempotent", value = "true"),
+                                @ExtensionProperty(name = "openWorld", value = "false")
+                            }))
+    @GetMapping("/list")
+    public Mono<List<MessageVO>> list(
+            @Parameter(
+                            description =
+                                    "Client-visible conversation identifier scoped to the current user and tenant; used to retrieve the full message history of one chat session.",
+                            example = "conv-20240101-abc123")
+                    @NotBlank
+                    @RequestParam(value = "conversation_id")
+                    String conversationId) {
+        return getPrincipalHeader()
+                .flatMap(header -> messageStore
+                        .list(conversationId, header)
+                        .map(messageBuilder::buildVOByBO)
+                        .collectList());
+    }
+}

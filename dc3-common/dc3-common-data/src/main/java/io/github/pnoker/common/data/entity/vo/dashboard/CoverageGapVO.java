@@ -1,0 +1,95 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.data.entity.vo.dashboard;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+/**
+ * Config-vs-reality coverage report — points declared in dc3_point that never produced
+ * any point_value row. {@code missingPoints / totalPoints} is the gap ratio;
+ * {@code items} is the (capped) list of offending ids so the UI can drill in.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Getter
+@Setter
+@ToString
+@NoArgsConstructor
+@Schema(description = "Config-vs-reality coverage report for declared points that never produced data")
+public class CoverageGapVO implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    @Schema(description = "total number of declared points", example = "500")
+    private long totalPoints;
+
+    @Schema(description = "number of declared points that never produced a value", example = "12")
+    private long missingPoints;
+
+    @Schema(description = "capped list of offending point/profile ids")
+    private List<Item> items = new ArrayList<>();
+
+    /**
+     * Unmodifiable view of the offending items, so callers cannot mutate internal state
+     * through the getter. Use {@link #addItem(Item)} to append.
+     *
+     * @return unmodifiable view of the items list
+     */
+    public List<Item> getItems() {
+        return Collections.unmodifiableList(items);
+    }
+
+    /**
+     * Append one offending item to the internal list.
+     *
+     * @param item item to append
+     */
+    public void addItem(Item item) {
+        items.add(item);
+    }
+
+    /**
+     * One point that has never reported any sample (missing coverage item).
+     */
+    @Getter
+    @Setter
+    @ToString
+    @NoArgsConstructor
+    @Schema(description = "One point with no recorded values")
+    public static class Item implements Serializable {
+
+        @Serial
+        private static final long serialVersionUID = 1L;
+
+        @Schema(description = "point ID", example = "2048")
+        private String pointId;
+
+        @Schema(description = "profile ID the point belongs to", example = "1024")
+        private String profileId;
+    }
+}

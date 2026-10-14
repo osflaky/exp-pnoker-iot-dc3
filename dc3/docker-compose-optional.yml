@@ -1,0 +1,224 @@
+#
+# Copyright 2016-present the IoT DC3 original author or authors.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
+# Optional stack: brokers, log/APM pipeline, monitoring.
+# Use `make up STACK=optional SERVICES="<service>"` to start a subset, or omit
+# SERVICES to start all.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: ${DC3_LOG_MAX_SIZE:-10M}
+    max-file: "${DC3_LOG_MAX_FILE:-20}"
+
+services:
+  # ---------- MQTT broker ----------
+  emqx:
+    image: ${DC3_IMAGE_REGISTRY:-pnoker}/dc3-emqx:${DC3_IMAGE_TAG:-2026.9}
+    restart: always
+    ports:
+      - "${DC3_BIND_HOST:-127.0.0.1}:${DC3_EMQX_WS_PORT:-38083}:8083"
+      - "${DC3_BIND_HOST:-127.0.0.1}:${DC3_EMQX_WSS_PORT:-38084}:8084"
+      - "${DC3_BIND_HOST:-127.0.0.1}:${DC3_EMQX_MQTT_PORT:-31883}:1883"
+      - "${DC3_BIND_HOST:-127.0.0.1}:${DC3_EMQX_MQTTS_PORT:-38883}:8883"
+      - "${DC3_BIND_HOST:-127.0.0.1}:${DC3_EMQX_DASHBOARD_PORT:-18083}:18083"
+    healthcheck:
+      test: [ "CMD-SHELL", "emqx ctl status" ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    container_name: dc3-emqx
+    hostname: dc3-emqx
+    volumes:
+      - emqx_data:/opt/emqx/data
+      - emqx_log:/opt/emqx/log
+    logging: *default-logging
+    networks:
+      dc3net:
+        aliases:
+          - dc3-emqx
+
+  # ---------- Elasticsearch / Logstash / Kibana / APM ----------
+  elasticsearch:
+    image: ${DC3_IMAGE_REGISTRY:-pnoker}/dc3-elasticsearch:${DC3_IMAGE_TAG:-2026.9}
+    restart: always
+    environment:
+      - "ES_JAVA_OPTS=${DC3_ES_JAVA_OPTS:--Xms512m -Xmx512m}"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://127.0.0.1:9200/_cluster/health >/dev/null || exit 1" ]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    container_name: dc3-elasticsearch
+    hostname: dc3-elasticsearch
+    volumes:
+      - elasticsearch:/usr/share/elasticsearch/data
+    logging: *default-logging
+    networks:
+      dc3net:
+        aliases:
+          - dc3-elasticsearch
+
+  logstash:
+    image: ${DC3_IMAGE_REGISTRY:-pnoker}/dc3-logstash:${DC3_IMAGE_TAG:-2026.9}
+    restart: always
+    depends_on:
+      - elasticsearch
+    environment:
+      - "LS_JAVA_OPTS=${DC3_LS_JAVA_OPTS:--Xms256m -Xmx256m}"
+    container_name: dc3-logstash
+    hostname: dc3-logstash
+    volumes:
+      - logs:/usr/share/logstash/dc3/logs
+      - logstash:/usr/share/logstash/data
+    logging: *default-logging
+    networks:
+      dc3net:
+        aliases:
+          - dc3-logstash
+
+  kibana:
+    image: ${DC3_IMAGE_REGISTRY:-pnoker}/dc3-kibana:${DC3_IMAGE_TAG:-2026.9}
+    restart: always
+    depends_on:
+      - elasticsearch
+    ports:
+      - "${DC3_BIND_HOST:-127.0.0.1}:${DC3_KIBANA_PORT:-5601}:5601"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://127.0.0.1:5601/api/status >/dev/null || exit 1" ]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    container_name: dc3-kibana
+    hostname: dc3-kibana
+    logging: *default-logging
+    networks:
+      dc3net:
+        aliases:
+          - dc3-kibana
+
+  apm:
+    image: ${DC3_IMAGE_REGISTRY:-pnoker}/dc3-apm:${DC3_IMAGE_TAG:-2026.9}
+    restart: always
+    depends_on:
+      - elasticsearch
+    container_name: dc3-apm
+    hostname: dc3-apm
+    logging: *default-logging
+    networks:
+      dc3net:
+        aliases:
+          - dc3-apm
+
+  # ---------- Distributed Tracing (Jaeger) ----------
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    restart: always
+    container_name: dc3-jaeger
+    hostname: dc3-jaeger
+    ports:
+      - "${DC3_BIND_HOST:-127.0.0.1}:${DC3_JAEGER_UI_PORT:-16686}:16686" # Jaeger UI
+      - "${DC3_BIND_HOST:-127.0.0.1}:${DC3_JAEGER_OTLP_GRPC_PORT:-4317}:4317" # OTLP gRPC
+      - "${DC3_BIND_HOST:-127.0.0.1}:${DC3_JAEGER_OTLP_HTTP_PORT:-4318}:4318" # OTLP HTTP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - LOG_LEVEL=info
+    logging: *default-logging
+    networks:
+      dc3net:
+        aliases:
+          - dc3-jaeger
+
+  # ---------- Monitoring (Prometheus + exporters + Grafana) ----------
+  prometheus:
+    image: ${DC3_IMAGE_REGISTRY:-pnoker}/dc3-prometheus:${DC3_IMAGE_TAG:-2026.9}
+    restart: always
+    container_name: dc3-prometheus
+    hostname: dc3-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+    volumes:
+      - prometheus:/prometheus
+    logging: *default-logging
+    networks:
+      dc3net:
+        aliases:
+          - dc3-prometheus
+
+  postgres-exporter:
+    image: ${DC3_IMAGE_REGISTRY:-pnoker}/dc3-postgres-exporter:${DC3_IMAGE_TAG:-2026.9}
+    restart: always
+    environment:
+      - DATA_SOURCE_URI=dc3-postgres:5432/${POSTGRES_DB:-dc3}?sslmode=disable
+      - DATA_SOURCE_USER=${POSTGRES_USERNAME:-dc3}
+      - DATA_SOURCE_PASS=${POSTGRES_PASSWORD:-dc3dc3dc3}
+    container_name: dc3-postgres-exporter
+    hostname: dc3-postgres-exporter
+    logging: *default-logging
+    networks:
+      dc3net:
+        aliases:
+          - dc3-postgres-exporter
+
+  nginx-exporter:
+    image: ${DC3_IMAGE_REGISTRY:-pnoker}/dc3-nginx-exporter:${DC3_IMAGE_TAG:-2026.9}
+    restart: always
+    container_name: dc3-nginx-exporter
+    hostname: dc3-nginx-exporter
+    logging: *default-logging
+    networks:
+      dc3net:
+        aliases:
+          - dc3-nginx-exporter
+
+  grafana:
+    image: ${DC3_IMAGE_REGISTRY:-pnoker}/dc3-grafana:${DC3_IMAGE_TAG:-2026.9}
+    restart: always
+    ports:
+      - "${DC3_BIND_HOST:-127.0.0.1}:${DC3_GRAFANA_PORT:-3000}:3000"
+    environment:
+      - GF_SERVER_ROOT_URL=${GF_SERVER_ROOT_URL:-http://localhost:3000}
+    container_name: dc3-grafana
+    hostname: dc3-grafana
+    volumes:
+      - grafana:/var/lib/grafana
+      # Provisioned datasources + dashboards for point-value observation.
+      # See dc3/dependencies/grafana/ in the repo.
+      - ./dependencies/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./dependencies/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    logging: *default-logging
+    networks:
+      dc3net:
+        aliases:
+          - dc3-grafana
+
+volumes:
+  emqx_data:
+  emqx_log:
+  logs:
+  elasticsearch:
+  logstash:
+  prometheus:
+  grafana:
+
+networks:
+  dc3net:
+    driver: bridge

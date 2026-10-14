@@ -1,0 +1,80 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.entity.ext;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+/**
+ * JSON extension object for notification channel binding metadata.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Schema(description = "JSON extension object for notification channel binding metadata")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class NotifyChannelBindExt extends BaseExt {
+
+    /**
+     * Extended content.
+     */
+    @Schema(description = "Extended content holding notification channel binding settings")
+    private Content content;
+
+    /**
+     * Bind-specific extension slot (routing hints for one rule-channel pair).
+     */
+    @Schema(description = "Extended content holding notification channel binding settings")
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Content {
+
+        /**
+         * Message levels allowed for this channel binding, for example P0/P1.
+         */
+        @Schema(
+                description =
+                        "Message severity levels routed to this channel binding, e.g. P0/P1; empty means all levels")
+        private List<String> levels;
+
+        /**
+         * Whether recovery notifications should be sent through this binding.
+         */
+        @Schema(
+                description = "Whether recovery notifications are sent through this binding when an alarm clears",
+                example = "true")
+        private Boolean sendRecovery;
+
+        /**
+         * Optional per-binding rate limit override.
+         */
+        @Schema(
+                description =
+                        "Optional per-binding rate limit override in milliseconds; null falls back to the channel default",
+                example = "60000")
+        private Long rateLimitOverrideMs;
+    }
+}

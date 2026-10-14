@@ -1,0 +1,84 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+import {httpGet, versionedDelete} from '@/api/common';
+import {API_MANAGER_BASE} from '@/config/constant/api';
+import type {Attribute} from '@/config/types';
+
+/**
+ * List driver attribute by driver id.
+ * @param id - record id
+ * @returns the listed driver attribute by driver id
+ */
+export const listDriverAttributeByDriverId = (id: string) =>
+  httpGet<Attribute[]>(`${API_MANAGER_BASE}/driver_attribute/list_by_driver_id`, {params: {driver_id: id}});
+
+/**
+ * List point attribute by driver id.
+ * @param id - record id
+ * @returns the listed point attribute by driver id
+ */
+export const listPointAttributeByDriverId = (id: string) =>
+  httpGet<Attribute[]>(`${API_MANAGER_BASE}/point_attribute/list_by_driver_id`, {params: {driver_id: id}});
+
+/**
+ * List command attribute by driver id.
+ * @param id - record id
+ * @returns the listed command attribute by driver id
+ */
+export const listCommandAttributeByDriverId = (id: string) =>
+  httpGet<Attribute[]>(`${API_MANAGER_BASE}/command_attribute/list_by_driver_id`, {params: {driver_id: id}});
+
+/**
+ * List event attribute by driver id.
+ * @param id - record id
+ * @returns the listed event attribute by driver id
+ */
+export const listEventAttributeByDriverId = (id: string) =>
+  httpGet<Attribute[]>(`${API_MANAGER_BASE}/event_attribute/list_by_driver_id`, {params: {driver_id: id}});
+
+/**
+ * Delete driver attribute.
+ * @param id - record id
+ * @param version - record version for optimistic locking
+ * @returns the operation result
+ */
+export const deleteDriverAttribute = (id: string, version: number) => versionedDelete(`${API_MANAGER_BASE}/driver_attribute`, id, version);
+
+/**
+ * Delete point attribute.
+ * @param id - record id
+ * @param version - record version for optimistic locking
+ * @returns the operation result
+ */
+export const deletePointAttribute = (id: string, version: number) => versionedDelete(`${API_MANAGER_BASE}/point_attribute`, id, version);
+
+/**
+ * Delete command attribute.
+ * @param id - record id
+ * @param version - record version for optimistic locking
+ * @returns the operation result
+ */
+export const deleteCommandAttribute = (id: string, version: number) => versionedDelete(`${API_MANAGER_BASE}/command_attribute`, id, version);
+
+/**
+ * Delete event attribute.
+ * @param id - record id
+ * @param version - record version for optimistic locking
+ * @returns the operation result
+ */
+export const deleteEventAttribute = (id: string, version: number) => versionedDelete(`${API_MANAGER_BASE}/event_attribute`, id, version);

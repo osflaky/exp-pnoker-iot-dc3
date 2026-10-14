@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright 2016-present the IoT DC3 original author or authors.
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License, or (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  -->
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.pnoker</groupId>
+        <artifactId>dc3-common</artifactId>
+        <version>2026.9.22</version>
+    </parent>
+
+    <name>${project.artifactId}</name>
+    <artifactId>dc3-common-agentic</artifactId>
+    <packaging>jar</packaging>
+
+    <description>
+        AI Agentic module for IoT DC3 platform — provides OpenAI-compatible streaming chat
+        with tool-calling capabilities against auth, manager, and data services.
+    </description>
+
+    <dependencies>
+
+        <!-- AI Related -->
+        <!-- Chat memory is backed by the reactive dc3_message repository.  Do not
+             pull the JDBC chat-memory starter: it adds a second DataSource,
+             spring-jdbc and HikariCP to the agentic runtime. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-model</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-openai</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-anthropic</artifactId>
+        </dependency>
+        <!-- OkHttp transport for the OpenAI/Anthropic Java SDKs. spring-ai pulls only the
+             *-java-core artifacts; the com.{openai,anthropic}.client.okhttp.* classes used by
+             ChatClientFactory live in these separate client-okhttp artifacts. Keep versions in
+             sync with the *-java-core versions that spring-ai transitively provides. -->
+        <dependency>
+            <groupId>com.openai</groupId>
+            <artifactId>openai-java-client-okhttp</artifactId>
+            <version>4.39.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.anthropic</groupId>
+            <artifactId>anthropic-java-client-okhttp</artifactId>
+            <version>2.40.1</version>
+        </dependency>
+        <!-- Align victools jsonschema-module-jackson with the generator/swagger 5.0.0 that spring-ai
+             provides. openai-java-core transitively drags in module-jackson 4.38.0, which is binary
+             incompatible with generator 5.0.0 and fails at runtime with NoClassDefFoundError on
+             JacksonSchemaModule when Spring AI builds tool JSON schemas. -->
+        <dependency>
+            <groupId>com.github.victools</groupId>
+            <artifactId>jsonschema-module-jackson</artifactId>
+            <version>5.0.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-r2dbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.pnoker</groupId>
+            <artifactId>dc3-db-core</artifactId>
+            <version>${dc3.version}</version>
+        </dependency>
+
+        <!-- DC3 Common Related -->
+        <dependency>
+            <groupId>io.github.pnoker</groupId>
+            <artifactId>dc3-common-constant</artifactId>
+            <version>${dc3.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.pnoker</groupId>
+            <artifactId>dc3-common-facade-api</artifactId>
+            <version>${dc3.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.pnoker</groupId>
+            <artifactId>dc3-common-web</artifactId>
+            <version>${dc3.version}</version>
+        </dependency>
+
+        <!-- Reactive test utilities for controller verification -->
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- x-dc3-ai annotation gate (SP2 ratchet): scans this module's controllers in a unit test -->
+        <dependency>
+            <groupId>io.github.pnoker</groupId>
+            <artifactId>dc3-common-resource</artifactId>
+            <version>${dc3.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+</project>

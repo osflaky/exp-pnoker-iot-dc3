@@ -1,0 +1,113 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.data.biz.impl;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import io.github.pnoker.common.data.biz.alarm.AlarmRuleTriggerService;
+import io.github.pnoker.common.data.entity.bo.EventReportBO;
+import io.github.pnoker.common.data.entity.builder.EventHistoryBuilder;
+import io.github.pnoker.common.data.entity.model.EventHistoryDO;
+import io.github.pnoker.common.data.repository.ReactiveEventHistoryStore;
+import io.github.pnoker.common.enums.EnableFlagEnum;
+import io.github.pnoker.common.enums.EventLevelEnum;
+import io.github.pnoker.common.enums.EventTypeFlagEnum;
+import io.github.pnoker.common.facade.api.DeviceFacade;
+import io.github.pnoker.common.facade.api.EventFacade;
+import io.github.pnoker.common.facade.entity.bo.FacadeDeviceBO;
+import io.github.pnoker.common.facade.entity.bo.FacadeEventBO;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Mono;
+
+@ExtendWith(MockitoExtension.class)
+class EventHistoryServiceImplTest {
+
+    @Mock
+    private DeviceFacade deviceFacade;
+
+    @Mock
+    private EventFacade eventFacade;
+
+    @Mock
+    private AlarmRuleTriggerService alarmRuleTriggerService;
+
+    @Mock
+    private ReactiveEventHistoryStore eventHistoryStore;
+
+    @Mock
+    private EventHistoryBuilder eventHistoryBuilder;
+
+    private EventHistoryServiceImpl service;
+
+    @BeforeEach
+    void setUp() {
+        service = new EventHistoryServiceImpl(
+                deviceFacade, eventFacade, alarmRuleTriggerService, eventHistoryStore, eventHistoryBuilder);
+    }
+
+    @Test
+    void reportResolvesEventByCodeWithinDeviceProfile() {
+        Long tenantId = 100L;
+        Long deviceId = 10L;
+        Long eventId = 20L;
+
+        FacadeDeviceBO device = new FacadeDeviceBO();
+        device.setId(deviceId);
+        device.setTenantId(tenantId);
+        device.setProfileId(30L);
+        device.setEnableFlag(EnableFlagEnum.ENABLE);
+
+        FacadeEventBO event = new FacadeEventBO();
+        event.setId(eventId);
+        event.setTenantId(tenantId);
+        event.setProfileId(30L);
+        event.setEventCode("overheat");
+        event.setEventTypeFlag(EventTypeFlagEnum.ALERT);
+        event.setEventLevelFlag(EventLevelEnum.HIGH);
+        event.setEnableFlag(EnableFlagEnum.ENABLE);
+
+        EventReportBO report = new EventReportBO();
+        report.setDeviceId(deviceId);
+        report.setEventCode("overheat");
+        report.setParamValues(Map.of("value", "90"));
+
+        when(deviceFacade.getByIdReactive(tenantId, deviceId)).thenReturn(Mono.just(device));
+        when(eventFacade.list(any()))
+                .thenReturn(Mono.just(new io.github.pnoker.db.core.page.OffsetPage<>(List.of(), 0, 1, 0, false)));
+        when(eventFacade.list(any()))
+                .thenReturn(Mono.just(io.github.pnoker.db.core.page.OffsetPage.of(List.of(event), 0, 1, 1)));
+        when(eventHistoryStore.insert(any(EventHistoryDO.class))).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
+
+        String recordId = service.report(tenantId, report).block();
+
+        ArgumentCaptor<EventHistoryDO> recordCaptor = ArgumentCaptor.forClass(EventHistoryDO.class);
+        verify(eventHistoryStore).insert(recordCaptor.capture());
+        assertThat(recordCaptor.getValue().getRecordId()).isEqualTo(recordId);
+        assertThat(recordCaptor.getValue().getEventId()).isEqualTo(eventId);
+        assertThat(recordCaptor.getValue().getEventCode()).isEqualTo("overheat");
+    }
+}

@@ -1,0 +1,252 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.auth.controller;
+
+import io.github.pnoker.common.annotation.PublicEndpoint;
+import io.github.pnoker.common.auth.biz.ReactiveTokenService;
+import io.github.pnoker.common.auth.entity.bean.TokenValid;
+import io.github.pnoker.common.auth.entity.query.TokenQuery;
+import io.github.pnoker.common.base.BaseController;
+import io.github.pnoker.common.constant.common.RequestConstant;
+import io.github.pnoker.common.constant.service.AuthConstant;
+import io.github.pnoker.common.exception.UnAuthorizedException;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.extensions.Extension;
+import io.swagger.v3.oas.annotations.extensions.ExtensionProperty;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.Duration;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Mono;
+
+/**
+ * REST controller for token validation and management.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Tag(
+        name = "token",
+        description =
+                "Token-based authentication: login, logout, token refresh, and session invalidation for user and service account sessions")
+@Slf4j
+@RestController
+@RequestMapping(AuthConstant.TOKEN_URL_PREFIX)
+@RequiredArgsConstructor
+public class TokenController implements BaseController {
+
+    private final ReactiveTokenService tokenService;
+
+    /**
+     * Generate a random password salt for a user under the given tenant.
+     *
+     * @param entityVO query carrying the user name and tenant used to mint the salt
+     * @return the salt string (expires in 5 minutes), or a failure when the user cannot be resolved
+     */
+    // Public endpoint: invoked before login, so no @PreAuthorize. Path is also
+    // permitted in WebFluxSecurityConfig (POST /token/salt).
+
+    /**
+     * Handle the generate salt request.
+     *
+     * @param entityVO view object
+     * @return asynchronous operation result
+     */
+    @PublicEndpoint
+    @SecurityRequirements
+    @Operation(
+            summary = "Generate Token Salt",
+            description =
+                    "Generate a random salt for a user under the given tenant, "
+                            + "used to salt the password on the subsequent token-generation call. The salt expires in 5 minutes; returns it as a string.",
+            extensions =
+                    @Extension(
+                            name = "x-dc3-ai",
+                            properties = {
+                                @ExtensionProperty(name = "riskLevel", value = "LOW"),
+                                @ExtensionProperty(name = "destructive", value = "false"),
+                                @ExtensionProperty(name = "idempotent", value = "false"),
+                                @ExtensionProperty(name = "openWorld", value = "false"),
+                                @ExtensionProperty(name = "hidden", value = "true")
+                            }))
+    @PostMapping("/salt")
+    public Mono<String> generateSalt(@Validated @RequestBody TokenQuery entityVO) {
+        return tokenService.generateSalt(entityVO.getName(), entityVO.getTenant());
+    }
+
+    /**
+     * Issue an access token for a user after validating name, salt, password and tenant.
+     *
+     * @param entityVO query carrying the user name, salt, password and tenant
+     * @return the access token (valid for 12 hours), or a failure when credentials are invalid
+     */
+    // Public endpoint: invoked during login (before a token exists), so no
+    // @PreAuthorize. Path is also permitted in WebFluxSecurityConfig (POST /token/generate).
+
+    /**
+     * Handle the generate token request.
+     *
+     * @param entityVO view object
+     * @param response response
+     * @return asynchronous operation result
+     */
+    @PublicEndpoint
+    @SecurityRequirements
+    @Operation(
+            summary = "Generate Token",
+            description = "Issue an access token for a user by validating name, salt, password and tenant. "
+                    + "Call after generating a salt; the returned token authenticates the user for 12 hours.",
+            extensions =
+                    @Extension(
+                            name = "x-dc3-ai",
+                            properties = {
+                                @ExtensionProperty(name = "riskLevel", value = "HIGH"),
+                                @ExtensionProperty(name = "destructive", value = "false"),
+                                @ExtensionProperty(name = "idempotent", value = "false"),
+                                @ExtensionProperty(name = "openWorld", value = "false"),
+                                @ExtensionProperty(name = "hidden", value = "true")
+                            }))
+    @PostMapping("/generate")
+    public Mono<String> generateToken(@Validated @RequestBody TokenQuery entityVO, ServerHttpResponse response) {
+        return tokenService
+                .generateToken(entityVO.getName(), entityVO.getPassword(), entityVO.getTenant())
+                .doOnNext(token -> response.addCookie(ResponseCookie.from(RequestConstant.Header.TOKEN_COOKIE, token)
+                        .httpOnly(true)
+                        .secure(true)
+                        .sameSite("Strict")
+                        .path("/")
+                        .maxAge(Duration.ofHours(12))
+                        .build()));
+    }
+
+    /**
+     * Self-service password change. Public because a credential flagged for a mandatory
+     * change or expired password cannot obtain a token until the password is changed.
+     *
+     * @param entityVO {@link TokenQuery} carrying name, tenant, current password and newPassword
+     * @return true when the password was changed
+     */
+    // Public endpoint: invoked during login when no token can be issued yet, so no
+    // @PreAuthorize. Path is also permitted in WebFluxSecurityConfig (POST /token/change_password).
+
+    /**
+     * Handle the change password request.
+     *
+     * @param entityVO view object
+     * @return asynchronous operation result
+     */
+    @PublicEndpoint
+    @SecurityRequirements
+    @Operation(
+            summary = "Change Password",
+            description =
+                    "Change a user's password using the current password and a new one, scoped to the given tenant. "
+                            + "Use during login when a token cannot be issued because the credential is expired or flagged for a mandatory change.",
+            extensions =
+                    @Extension(
+                            name = "x-dc3-ai",
+                            properties = {
+                                @ExtensionProperty(name = "riskLevel", value = "HIGH"),
+                                @ExtensionProperty(name = "destructive", value = "true"),
+                                @ExtensionProperty(name = "idempotent", value = "false"),
+                                @ExtensionProperty(name = "openWorld", value = "false"),
+                                @ExtensionProperty(name = "hidden", value = "true")
+                            }))
+    @PostMapping("/change_password")
+    public Mono<Boolean> changePassword(@Validated @RequestBody TokenQuery entityVO) {
+        return tokenService
+                .changePassword(
+                        entityVO.getName(), entityVO.getPassword(), entityVO.getNewPassword(), entityVO.getTenant())
+                .thenReturn(Boolean.TRUE);
+    }
+
+    /**
+     * Acknowledge a client-initiated logout for the current token.
+     *
+     * @param entityVO {@link TokenQuery} carrying the name and tenant identifying the token to cancel
+     * @return true when the logout was accepted
+     */
+    @PreAuthorize("@perm.can('token', 'delete')")
+    @Operation(
+            summary = "Cancel Token",
+            description =
+                    "Acknowledge a client-initiated logout for the current token of the named user under the given tenant. "
+                            + "Requires token:delete permission; returns true when the session is cancelled.",
+            extensions =
+                    @Extension(
+                            name = "x-dc3-ai",
+                            properties = {
+                                @ExtensionProperty(name = "riskLevel", value = "HIGH"),
+                                @ExtensionProperty(name = "destructive", value = "true"),
+                                @ExtensionProperty(name = "idempotent", value = "true"),
+                                @ExtensionProperty(name = "openWorld", value = "false"),
+                                @ExtensionProperty(name = "hidden", value = "true")
+                            }))
+    @PostMapping("/cancel")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> cancelToken(@Validated @RequestBody TokenQuery entityVO, ServerHttpResponse response) {
+        return getPrincipalHeader()
+                .flatMap(header ->
+                        tokenService.tryCancelToken(entityVO.getName(), entityVO.getTenant(), header.getPrincipalId()))
+                .flatMap(cancelled -> cancelled
+                        ? Mono.fromRunnable(
+                                () -> response.addCookie(ResponseCookie.from(RequestConstant.Header.TOKEN_COOKIE, "")
+                                        .httpOnly(true)
+                                        .secure(true)
+                                        .sameSite("Strict")
+                                        .path("/")
+                                        .maxAge(Duration.ZERO)
+                                        .build()))
+                        : Mono.error(new UnAuthorizedException("Cancel token failed")));
+    }
+
+    /**
+     * Check whether the supplied token for the named user and tenant is still valid.
+     *
+     * @param entityVO query carrying the user name, salt, token and tenant to validate
+     * @return the token validity flag, with a message stating its expiry or expiration time
+     */
+    @PreAuthorize("@perm.can('token', 'get')")
+    @Operation(
+            summary = "Validate Token",
+            description = "Check whether the supplied token for the named user and tenant is still valid. "
+                    + "Requires token:get permission; returns validity plus the token's expiry time.",
+            extensions =
+                    @Extension(
+                            name = "x-dc3-ai",
+                            properties = {
+                                @ExtensionProperty(name = "riskLevel", value = "LOW"),
+                                @ExtensionProperty(name = "destructive", value = "false"),
+                                @ExtensionProperty(name = "idempotent", value = "true"),
+                                @ExtensionProperty(name = "openWorld", value = "false")
+                            }))
+    @PostMapping("/check")
+    public Mono<TokenValid> checkValid(@Validated @RequestBody TokenQuery entityVO) {
+        return tokenService.checkValid(entityVO.getName(), entityVO.getToken(), entityVO.getTenant());
+    }
+}

@@ -1,0 +1,62 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.manager.entity.vo.dashboard;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.io.Serial;
+import java.io.Serializable;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+
+/**
+ * One edge in the Sankey. In cardinality mode {@code value} is the number of
+ * relationships this edge represents (1 per device for Driver→Device, 1 per profile_bind
+ * row for Device→Profile, 1 per point for Profile→Point; aggregated into N for
+ * {@code *→others} edges). In volume mode (Phase 2) it carries the point_value sample
+ * count rolled up along the edge.
+ *
+ * @author pnoker
+ * @since 2026.5.4
+ */
+@Getter
+@Setter
+@ToString
+@Schema(description = "One edge in the topology Sankey graph")
+public class TopologyLinkVO implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    @Schema(
+            description =
+                    "Prefixed identifier of the source node, formatted as '<type>:<id>' (e.g. driver, device, profile, point); both endpoints are scoped to the current tenant.",
+            example = "driver:1024")
+    private String source;
+
+    @Schema(
+            description =
+                    "Prefixed identifier of the target node, formatted as '<type>:<id>' (e.g. driver, device, profile, point); both endpoints are scoped to the current tenant.",
+            example = "device:2048")
+    private String target;
+
+    @Schema(
+            description =
+                    "Edge weight: in cardinality mode the number of relationships this edge represents (1 per device for Driver→Device, 1 per profile_bind for Device→Profile, 1 per point for Profile→Point, aggregated into N for '*→others'); in volume mode the rolled-up point_value sample count.",
+            example = "5")
+    private long value;
+}

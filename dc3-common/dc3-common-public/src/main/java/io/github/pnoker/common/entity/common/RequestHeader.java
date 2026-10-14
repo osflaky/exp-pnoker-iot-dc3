@@ -1,0 +1,167 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.entity.common;
+
+import io.github.pnoker.common.constant.common.ExceptionConstant;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+
+/**
+ * HTTP request header containers for token and user context.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Getter
+@Setter
+public class RequestHeader {
+
+    private RequestHeader() {
+        throw new IllegalStateException(ExceptionConstant.UTILITY_CLASS);
+    }
+
+    /**
+     * X-Auth-Token envelope: cipher + salt the gateway re-validates per hop.
+     */
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    public static class TokenHeader {
+
+        /** Create an empty token header for deserialization. */
+        public TokenHeader() {}
+
+        /**
+         * Salt value for token encryption
+         */
+        private String salt;
+
+        /**
+         * JWT token string
+         */
+        private String token;
+    }
+
+    /**
+     * X-Auth-Principal envelope: authenticated identity (principal/tenant) for downstream authz and audit.
+     */
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    public static class PrincipalHeader {
+
+        /** Create an empty principal header for deserialization. */
+        public PrincipalHeader() {}
+
+        /**
+         * Principal ID for authentication, authorization, and audit.
+         */
+        private Long principalId;
+
+        /**
+         * Principal type, for example USER or SERVICE_ACCOUNT.
+         */
+        private String principalType;
+
+        /**
+         * Display name.
+         */
+        private String displayName;
+
+        /**
+         * Principal account name.
+         */
+        private String principalName;
+
+        /**
+         * Tenant ID for multi-tenant isolation
+         */
+        private Long tenantId;
+
+        /**
+         * Legacy 7-arg shape kept for the many existing callers; scopes default null.
+         *
+         * @param principalId   authenticated principal identifier
+         * @param principalType authenticated principal type
+         * @param displayName   principal display name
+         * @param principalName principal account name
+         * @param tenantId      tenant identifier
+         * @param clientId      OAuth client identifier, or null for classic login
+         * @param connectionId  MCP connection identifier, or null when not applicable
+         */
+        public PrincipalHeader(
+                Long principalId,
+                String principalType,
+                String displayName,
+                String principalName,
+                Long tenantId,
+                String clientId,
+                Long connectionId) {
+            this.principalId = principalId;
+            this.principalType = principalType;
+            this.displayName = displayName;
+            this.principalName = principalName;
+            this.tenantId = tenantId;
+            this.clientId = clientId;
+            this.connectionId = connectionId;
+        }
+
+        /**
+         * OAuth client ID when the request is delegated through OAuth or MCP.
+         */
+        private String clientId;
+
+        /**
+         * MCP connection ID when the request originates from the MCP runtime.
+         */
+        private Long connectionId;
+
+        /**
+         * Granted OAuth scopes when the ticket is an OAuth/MCP access token; null for
+         * classic login tickets. Consumers must ignore what they do not understand.
+         */
+        private java.util.List<String> scopes;
+
+        /**
+         * Audit accessor. The value is the principal ID, not dc3_user.id.
+         *
+         * @return principal ID
+         */
+        public Long getUserId() {
+            return principalId;
+        }
+
+        /**
+         * Audit display-name accessor.
+         *
+         * @return display name
+         */
+        public String getNickName() {
+            return displayName;
+        }
+
+        /**
+         * Audit account-name accessor.
+         *
+         * @return principal name
+         */
+        public String getUserName() {
+            return principalName;
+        }
+    }
+}

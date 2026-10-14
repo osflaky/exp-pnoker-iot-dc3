@@ -1,0 +1,45 @@
+/*!
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+// Shared form layout for edit pages.
+
+.edit-form-item {
+  display: flex;
+  margin: var(--dc3-space-2) 0;
+  justify-content: center;
+
+  :deep(.el-row) {
+    justify-content: center;
+  }
+
+  :deep(.el-alert) {
+    margin-bottom: var(--dc3-space-2);
+  }
+
+  :deep(.el-textarea__inner) {
+    height: 80px;
+  }
+}
+
+.edit-form-button {
+  display: flex;
+  margin-top: var(--dc3-space-2);
+
+  :deep(.el-form-item__content) {
+    justify-content: center;
+  }
+}

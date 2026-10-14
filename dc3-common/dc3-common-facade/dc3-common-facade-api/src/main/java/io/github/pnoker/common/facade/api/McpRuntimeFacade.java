@@ -1,0 +1,35 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.facade.api;
+
+import io.github.pnoker.common.entity.dto.McpAuditCommandDTO;
+import io.github.pnoker.common.entity.dto.McpCallToolRequestDTO;
+import io.github.pnoker.common.entity.dto.McpCallToolResponseDTO;
+import io.github.pnoker.common.entity.dto.McpToolListResponseDTO;
+import reactor.core.publisher.Mono;
+
+/** Reactive MCP runtime facade used by the gateway. */
+public interface McpRuntimeFacade {
+    /** List tools matching the request. */
+    Mono<McpToolListResponseDTO> listTools(String token);
+
+    /** Authorize and execute one MCP tool call. */
+    Mono<McpCallToolResponseDTO> callTool(McpCallToolRequestDTO request);
+
+    /** Persist one MCP tool-call audit record. */
+    Mono<Void> audit(McpAuditCommandDTO command);
+}

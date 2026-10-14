@@ -1,0 +1,235 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.auth.entity.builder;
+
+import io.github.pnoker.common.auth.entity.bo.ResourceBO;
+import io.github.pnoker.common.auth.entity.bo.ResourceTreeBO;
+import io.github.pnoker.common.auth.entity.model.ResourceDO;
+import io.github.pnoker.common.auth.entity.vo.ResourceTreeVO;
+import io.github.pnoker.common.auth.entity.vo.ResourceVO;
+import io.github.pnoker.common.entity.ext.JsonExt;
+import io.github.pnoker.common.entity.ext.ResourceExt;
+import io.github.pnoker.common.enums.EnableFlagEnum;
+import io.github.pnoker.common.enums.ResourceScopeTypeEnum;
+import io.github.pnoker.common.enums.ResourceTypeEnum;
+import io.github.pnoker.common.utils.CodeUtil;
+import io.github.pnoker.common.utils.JsonUtil;
+import io.github.pnoker.common.utils.MapStructUtil;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import org.apache.commons.lang3.StringUtils;
+import org.mapstruct.AfterMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
+/**
+ * MapStruct builder converting between resource BO, VO, and DO.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Mapper(
+        componentModel = "spring",
+        uses = {MapStructUtil.class})
+public interface ResourceBuilder {
+
+    /**
+     * VO to BO
+     *
+     * @param entityVO EntityVO
+     * @return EntityBO
+     */
+    ResourceBO buildBOByVO(ResourceVO entityVO);
+
+    /**
+     * VOList to BOList
+     *
+     * @param entityVOList EntityVO Array
+     * @return EntityBO Array
+     */
+    List<ResourceBO> buildBOListByVOList(List<ResourceVO> entityVOList);
+
+    /**
+     * BO to DO
+     *
+     * @param entityBO EntityBO
+     * @return EntityDO
+     */
+    @Mapping(target = "resourceExt", ignore = true)
+    @Mapping(target = "resourceTypeFlag", ignore = true)
+    @Mapping(target = "resourceScopeFlag", ignore = true)
+    @Mapping(target = "enableFlag", ignore = true)
+    @Mapping(target = "deleted", ignore = true)
+    ResourceDO buildDOByBO(ResourceBO entityBO);
+
+    /**
+     * After process.
+     *
+     * @param entityBO business object
+     * @param entityDO persistence object
+     */
+    @AfterMapping
+    default void afterProcess(ResourceBO entityBO, @MappingTarget ResourceDO entityDO) {
+        // Code
+        if (StringUtils.isEmpty(entityBO.getResourceCode())) {
+            entityDO.setResourceCode(CodeUtil.getCode());
+        }
+
+        // Json Ext
+        ResourceExt entityExt = entityBO.getResourceExt();
+        JsonExt ext = new JsonExt();
+        if (Objects.nonNull(entityExt)) {
+            ext.setType(entityExt.getType());
+            ext.setVersion(entityExt.getVersion());
+            ext.setRemark(entityExt.getRemark());
+            ext.setContent(JsonUtil.toJsonString(entityExt.getContent()));
+        }
+        entityDO.setResourceExt(ext);
+
+        // ResourceType Flag
+        ResourceTypeEnum resourceTypeFlag = entityBO.getResourceTypeFlag();
+        Optional.ofNullable(resourceTypeFlag).ifPresent(value -> entityDO.setResourceTypeFlag(value.getIndex()));
+
+        // ResourceScope Flag
+        ResourceScopeTypeEnum resourceScopeFlag = entityBO.getResourceScopeFlag();
+        Optional.ofNullable(resourceScopeFlag).ifPresent(value -> entityDO.setResourceScopeFlag(value.getIndex()));
+
+        // Enable Flag
+        EnableFlagEnum enableFlag = entityBO.getEnableFlag();
+        Optional.ofNullable(enableFlag).ifPresent(value -> entityDO.setEnableFlag(value.getIndex()));
+    }
+
+    /**
+     * BOList to DOList
+     *
+     * @param entityBOList EntityBO Array
+     * @return EntityDO Array
+     */
+    List<ResourceDO> buildDOListByBOList(List<ResourceBO> entityBOList);
+
+    /**
+     * DO to BO
+     *
+     * @param entityDO EntityDO
+     * @return EntityBO
+     */
+    @Mapping(target = "resourceExt", ignore = true)
+    @Mapping(target = "resourceTypeFlag", ignore = true)
+    @Mapping(target = "resourceScopeFlag", ignore = true)
+    @Mapping(target = "enableFlag", ignore = true)
+    ResourceBO buildBOByDO(ResourceDO entityDO);
+
+    /**
+     * After process.
+     *
+     * @param entityDO persistence object
+     * @param entityBO business object
+     */
+    @AfterMapping
+    default void afterProcess(ResourceDO entityDO, @MappingTarget ResourceBO entityBO) {
+        // Json Ext
+        JsonExt entityExt = entityDO.getResourceExt();
+        if (Objects.nonNull(entityExt)) {
+            ResourceExt ext = new ResourceExt();
+            ext.setType(entityExt.getType());
+            ext.setVersion(entityExt.getVersion());
+            ext.setRemark(entityExt.getRemark());
+            ext.setContent(JsonUtil.parseObject(entityExt.getContent(), ResourceExt.Content.class));
+            entityBO.setResourceExt(ext);
+        }
+
+        // ResourceType Flag
+        Byte resourceTypeFlag = entityDO.getResourceTypeFlag();
+        entityBO.setResourceTypeFlag(ResourceTypeEnum.ofIndex(resourceTypeFlag));
+
+        // ResourceScope Flag
+        Byte resourceScopeFlag = entityDO.getResourceScopeFlag();
+        entityBO.setResourceScopeFlag(ResourceScopeTypeEnum.ofIndex(resourceScopeFlag));
+
+        // Enable Flag
+        Byte enableFlag = entityDO.getEnableFlag();
+        entityBO.setEnableFlag(EnableFlagEnum.ofIndex(enableFlag));
+    }
+
+    /**
+     * DOList to BOList
+     *
+     * @param entityDOList EntityDO Array
+     * @return EntityBO Array
+     */
+    List<ResourceBO> buildBOListByDOList(List<ResourceDO> entityDOList);
+
+    /**
+     * BO to VO
+     *
+     * @param entityBO EntityBO
+     * @return EntityVO
+     */
+    ResourceVO buildVOByBO(ResourceBO entityBO);
+
+    /**
+     * BOList to VOList
+     *
+     * @param entityBOList EntityBO Array
+     * @return EntityVO Array
+     */
+    List<ResourceVO> buildVOListByBOList(List<ResourceBO> entityBOList);
+
+    /**
+     * Convert bo list to tree view object list.
+     *
+     * @param entityBOList entity business object list
+     * @return converted value
+     */
+    default List<ResourceTreeVO> buildTreeVOListByBOList(List<ResourceTreeBO> entityBOList) {
+        return entityBOList.stream().map(this::buildTreeVOByBO).toList();
+    }
+
+    /**
+     * Convert bo to tree view object.
+     *
+     * @param entityBO business object
+     * @return converted value
+     */
+    default ResourceTreeVO buildTreeVOByBO(ResourceTreeBO entityBO) {
+        ResourceVO flat = buildVOByBO(entityBO);
+        ResourceTreeVO out = new ResourceTreeVO();
+        out.setId(flat.getId());
+        out.setParentResourceId(flat.getParentResourceId());
+        out.setResourceName(flat.getResourceName());
+        out.setResourceCode(flat.getResourceCode());
+        out.setServiceName(flat.getServiceName());
+        out.setResourceTypeFlag(flat.getResourceTypeFlag());
+        out.setResourceScopeFlag(flat.getResourceScopeFlag());
+        out.setEntityId(flat.getEntityId());
+        out.setResourceExt(flat.getResourceExt());
+        out.setEnableFlag(flat.getEnableFlag());
+        out.setRemark(flat.getRemark());
+        out.setCreatorId(flat.getCreatorId());
+        out.setCreatorName(flat.getCreatorName());
+        out.setCreateTime(flat.getCreateTime());
+        out.setOperatorId(flat.getOperatorId());
+        out.setOperatorName(flat.getOperatorName());
+        out.setOperateTime(flat.getOperateTime());
+        if (Objects.nonNull(entityBO.getChildren())) {
+            out.setChildren(buildTreeVOListByBOList(entityBO.getChildren()));
+        }
+        return out;
+    }
+}

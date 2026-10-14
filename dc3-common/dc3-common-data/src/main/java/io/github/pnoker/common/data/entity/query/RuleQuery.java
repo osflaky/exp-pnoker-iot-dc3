@@ -1,0 +1,121 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.data.entity.query;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import io.github.pnoker.common.enums.AlarmTargetTypeEnum;
+import io.github.pnoker.common.enums.EnableFlagEnum;
+import io.github.pnoker.db.core.page.PageRequest;
+import io.github.pnoker.db.core.page.SortSpec;
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+/**
+ * Query parameters for alarm rule listing and filtering.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Getter
+@Setter
+@Builder
+@ToString
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_DEFAULT)
+@Schema(description = "Rule query parameters")
+public class RuleQuery implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    @Schema(description = "Zero-based number of records to skip.", example = "0")
+    private Long offset;
+
+    @Schema(description = "Maximum number of records to return.", example = "50", maximum = "200")
+    @Builder.Default
+    private Integer limit = PageRequest.DEFAULT_LIMIT;
+
+    @Schema(description = "Stable allow-listed sort fields.")
+    @Builder.Default
+    private List<SortSpec> sort = List.of();
+
+    /**
+     * Null-safe paging accessors: the runtime Jackson 3 mapper binds request bodies
+     * through the all-args constructor, leaving absent fields null. Boxed fields keep
+     * "unspecified" distinguishable from explicit (possibly invalid) values.
+     */
+    public long getOffset() {
+        return offset == null ? 0L : offset;
+    }
+
+    /** Return the requested page limit. */
+    public int getLimit() {
+        return limit == null ? PageRequest.DEFAULT_LIMIT : limit;
+    }
+
+    /** Return the requested sort. */
+    public List<SortSpec> getSort() {
+        return sort == null ? List.of() : sort;
+    }
+
+    /**
+     * Tenant ID
+     */
+    @Schema(description = "Tenant ID for multi-tenant isolation. Required for query scope.")
+    private Long tenantId;
+
+    /**
+     * Rule name
+     */
+    @Schema(description = "Filter by rule name. Supports partial matching.", example = "High Temp Alert")
+    private String ruleName;
+
+    /**
+     * Rule code
+     */
+    @Schema(
+            description = "Filter by rule code. Exact match on the stable business identifier.",
+            example = "HIGH_TEMP_ALERT")
+    private String ruleCode;
+
+    /**
+     * Entity ID
+     */
+    @Schema(description = "Associated entity ID", example = "2048")
+    private Long entityId;
+
+    /**
+     * Alarm target type flag
+     */
+    @Schema(description = "Alarm target type enum", example = "DEVICE")
+    private AlarmTargetTypeEnum alarmTargetTypeFlag;
+
+    /**
+     * Enable flag
+     */
+    @Schema(description = "Enable flag: ENABLE (0) or DISABLE (1).", example = "ENABLE")
+    private EnableFlagEnum enableFlag;
+}

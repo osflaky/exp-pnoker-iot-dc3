@@ -1,0 +1,55 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+import {httpPost} from '@/api/common';
+import {createCrudApi} from '@/api/factory';
+import {API_SERVICE_ACCOUNT_BASE} from '@/config/constant/api';
+import type {ServiceAccountForm, ServiceAccountRecord} from '@/config/types/auth';
+import type {PageQuery, PageResult} from '@/config/types';
+
+const crud = createCrudApi<ServiceAccountForm, ServiceAccountRecord>({base: API_SERVICE_ACCOUNT_BASE});
+
+export const addServiceAccount = crud.add;
+
+export const deleteServiceAccount = crud.delete;
+
+export const updateServiceAccount = crud.update;
+
+/**
+ * Enable a service account by id.
+ * @param id - record id
+ * @returns the string response
+ */
+export const enableServiceAccount = (id: string) =>
+  httpPost<string>(`${API_SERVICE_ACCOUNT_BASE}/enable`, undefined, {params: {id}});
+
+/**
+ * Disable a service account by id.
+ * @param id - record id
+ * @returns the string response
+ */
+export const disableServiceAccount = (id: string) =>
+  httpPost<string>(`${API_SERVICE_ACCOUNT_BASE}/disable`, undefined, {params: {id}});
+
+export const getServiceAccountById = crud.getById;
+
+/**
+ * List service account.
+ * @param query - page query with filters and paging
+ * @returns the listed service account
+ */
+export const listServiceAccount = (query: PageQuery) => crud.list<PageResult<ServiceAccountRecord>>(query);

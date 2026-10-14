@@ -1,0 +1,194 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.data.entity.builder;
+
+import io.github.pnoker.common.data.entity.bo.RuleBO;
+import io.github.pnoker.common.data.entity.model.RuleDO;
+import io.github.pnoker.common.data.entity.vo.RuleVO;
+import io.github.pnoker.common.entity.ext.JsonExt;
+import io.github.pnoker.common.entity.ext.RuleExt;
+import io.github.pnoker.common.enums.AlarmTargetTypeEnum;
+import io.github.pnoker.common.enums.EnableFlagEnum;
+import io.github.pnoker.common.utils.CodeUtil;
+import io.github.pnoker.common.utils.JsonUtil;
+import io.github.pnoker.common.utils.MapStructUtil;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import org.apache.commons.lang3.StringUtils;
+import org.mapstruct.AfterMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
+/**
+ * MapStruct builder converting between alarm rule BO, VO, and DO.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Mapper(
+        componentModel = "spring",
+        uses = {MapStructUtil.class})
+public interface RuleBuilder {
+
+    /**
+     * VO to BO
+     *
+     * @param entityVO EntityVO
+     * @return EntityBO
+     */
+    @Mapping(target = "tenantId", ignore = true)
+    RuleBO buildBOByVO(RuleVO entityVO);
+
+    /**
+     * VOList to BOList
+     *
+     * @param entityVOList EntityVO Array
+     * @return EntityBO Array
+     */
+    List<RuleBO> buildBOListByVOList(List<RuleVO> entityVOList);
+
+    /**
+     * BO to DO
+     *
+     * @param entityBO EntityBO
+     * @return EntityDO
+     */
+    @Mapping(target = "ruleExt", ignore = true)
+    @Mapping(target = "alarmTargetTypeFlag", ignore = true)
+    @Mapping(target = "enableFlag", ignore = true)
+    @Mapping(target = "deleted", ignore = true)
+    RuleDO buildDOByBO(RuleBO entityBO);
+
+    /**
+     * After process.
+     *
+     * @param entityBO business object
+     * @param entityDO persistence object
+     */
+    @AfterMapping
+    default void afterProcess(RuleBO entityBO, @MappingTarget RuleDO entityDO) {
+        // Code
+        if (StringUtils.isEmpty(entityBO.getRuleCode())) {
+            entityDO.setRuleCode(CodeUtil.getCode());
+        }
+
+        // Json Ext
+        RuleExt entityExt = entityBO.getRuleExt();
+        JsonExt ext = new JsonExt();
+        if (Objects.nonNull(entityExt)) {
+            ext.setType(entityExt.getType());
+            ext.setVersion(entityExt.getVersion());
+            ext.setRemark(entityExt.getRemark());
+            ext.setContent(JsonUtil.toJsonString(entityExt.getContent()));
+        }
+        entityDO.setRuleExt(ext);
+
+        // AlarmTargetType Flag
+        AlarmTargetTypeEnum alarmTargetTypeFlag = entityBO.getAlarmTargetTypeFlag();
+        Optional.ofNullable(alarmTargetTypeFlag).ifPresent(value -> entityDO.setAlarmTargetTypeFlag(value.getIndex()));
+
+        // Enable Flag
+        EnableFlagEnum enableFlag = entityBO.getEnableFlag();
+        Optional.ofNullable(enableFlag).ifPresent(value -> entityDO.setEnableFlag(value.getIndex()));
+    }
+
+    /**
+     * BOList to DOList
+     *
+     * @param entityBOList EntityBO Array
+     * @return EntityDO Array
+     */
+    List<RuleDO> buildDOListByBOList(List<RuleBO> entityBOList);
+
+    /**
+     * DO to BO
+     *
+     * @param entityDO EntityDO
+     * @return EntityBO
+     */
+    @Mapping(target = "ruleExt", ignore = true)
+    @Mapping(target = "alarmTargetTypeFlag", ignore = true)
+    @Mapping(target = "enableFlag", ignore = true)
+    RuleBO buildBOByDO(RuleDO entityDO);
+
+    /**
+     * After process.
+     *
+     * @param entityDO persistence object
+     * @param entityBO business object
+     */
+    @AfterMapping
+    default void afterProcess(RuleDO entityDO, @MappingTarget RuleBO entityBO) {
+        // Json Ext
+        JsonExt entityExt = entityDO.getRuleExt();
+        if (Objects.nonNull(entityExt)) {
+            RuleExt ext = new RuleExt();
+            ext.setType(entityExt.getType());
+            ext.setVersion(entityExt.getVersion());
+            ext.setRemark(entityExt.getRemark());
+            ext.setContent(JsonUtil.parseObject(entityExt.getContent(), RuleExt.Content.class));
+            entityBO.setRuleExt(ext);
+        }
+
+        // AlarmTargetType Flag
+        Byte alarmTargetTypeFlag = entityDO.getAlarmTargetTypeFlag();
+        entityBO.setAlarmTargetTypeFlag(AlarmTargetTypeEnum.ofIndex(alarmTargetTypeFlag));
+
+        // Enable Flag
+        Byte enableFlag = entityDO.getEnableFlag();
+        entityBO.setEnableFlag(EnableFlagEnum.ofIndex(enableFlag));
+    }
+
+    /**
+     * DOList to BOList
+     *
+     * @param entityDOList EntityDO Array
+     * @return EntityBO Array
+     */
+    List<RuleBO> buildBOListByDOList(List<RuleDO> entityDOList);
+
+    /**
+     * BO to VO
+     *
+     * @param entityBO EntityBO
+     * @return EntityVO
+     */
+    RuleVO buildVOByBO(RuleBO entityBO);
+
+    /**
+     * BOList to VOList
+     *
+     * @param entityBOList EntityBO Array
+     * @return EntityVO Array
+     */
+    List<RuleVO> buildVOListByBOList(List<RuleBO> entityBOList);
+
+    /**
+     * DOPage to BOPage
+     *
+     * @param entityPageDO EntityDO Page
+     * @return EntityBO Page
+     */
+    /**
+     * BOPage to VOPage
+     *
+     * @param entityPageBO EntityBO Page
+     * @return EntityVO Page
+     */
+}

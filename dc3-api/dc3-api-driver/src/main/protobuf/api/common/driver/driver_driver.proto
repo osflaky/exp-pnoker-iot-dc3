@@ -1,0 +1,73 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+syntax = "proto3";
+
+package api.common.driver;
+
+import "api/common/entity.proto";
+import "api/common/driver/driver_entity.proto";
+import "api/common/driver/driver_query.proto";
+
+// Configuration options for code generation
+option java_package = "io.github.pnoker.api.common.driver";
+option java_outer_classname = "DriverRegistrationProto";
+option objc_class_prefix = "Driver";
+option java_multiple_files = true;
+
+// Service interface defining RPC calls related to drivers
+service DriverApi {
+  // Driver registration, used by the driver service to register itself with the platform
+  rpc DriverRegister (GrpcDriverRegisterDTO) returns (GrpcDriverRegistrationDTO);
+
+  // Query the current registered driver metadata without re-registering it
+  rpc GetById (GrpcDriverQuery) returns (GrpcDriverRegistrationDTO);
+
+  // Renew this runtime instance and stream a bounded snapshot of the devices it owns.
+  rpc RenewLease (GrpcDriverLeaseRequest) returns (stream GrpcDriverLeaseDTO);
+}
+
+// Driver registration response structure
+message GrpcDriverRegistrationDTO {
+  // Basic driver information
+  GrpcDriverDTO driver = 2;
+
+  reserved 3, 8, 9, 10;
+
+  // List of driver attribute configurations
+  repeated GrpcDriverAttributeDTO driver_attributes = 4;
+
+  // List of point attribute configurations supported by the driver
+  repeated GrpcPointAttributeDTO point_attributes = 5;
+
+  // List of command attribute configurations supported by the driver
+  repeated GrpcCommandAttributeDTO command_attributes = 6;
+
+  // List of event attribute configurations supported by the driver
+  repeated GrpcEventAttributeDTO event_attributes = 7;
+
+}
+
+message GrpcDriverLeaseDTO {
+  repeated GrpcDeviceLeaseDTO device_leases = 2;
+  int64 lease_until_epoch_millis = 3;
+  int64 assignment_version = 4;
+  bool assignments_changed = 5;
+  // True only on the final batch. Changed assignments are installed atomically
+  // by the client after this marker and normal stream completion.
+  bool snapshot_complete = 6;
+}

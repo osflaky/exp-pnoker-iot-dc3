@@ -1,0 +1,53 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.data.entity.vo.dashboard;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.io.Serial;
+import java.io.Serializable;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+/**
+ * One bin of the acquisition-to-storage latency histogram. The {@code bin} index is
+ * mapped to a human-readable label by the frontend: 0=&lt;100ms, 1=100-500ms, 2=500ms-1s,
+ * 3=1-5s, 4=5-30s, 5=&gt;=30s.
+ *
+ * @author pnoker
+ * @since 2026.5.2
+ */
+@Getter
+@Setter
+@ToString
+@NoArgsConstructor
+@Schema(description = "One bin of the acquisition-to-storage latency histogram")
+public class LatencyBucketVO implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    @Schema(
+            description =
+                    "Latency bin index mapped by the frontend to a range: 0=<100ms, 1=100-500ms, 2=500ms-1s, 3=1-5s, 4=5-30s, 5=>=30s",
+            example = "2")
+    private int bin;
+
+    @Schema(description = "Number of samples that fell into this latency bin", example = "128")
+    private long count;
+}

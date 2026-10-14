@@ -1,0 +1,178 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.driver.metadata;
+
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalListener;
+import com.github.benmanes.caffeine.cache.stats.CacheStats;
+import io.github.pnoker.common.driver.entity.property.DriverProperties;
+import io.github.pnoker.common.exception.ServiceException;
+import java.time.Duration;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
+
+/**
+ * Shared scaffolding for the driver-side metadata caches ({@link DeviceMetadata},
+ * {@link PointMetadata}). Wraps a Caffeine {@link AsyncLoadingCache} keyed by id and
+ * exposes the load / refresh / invalidate primitives used by the RabbitMQ metadata
+ * consumer.
+ *
+ * <p>Cache freshness comes from RabbitMQ events, not TTL. {@code maximumSize} caps
+ * memory only. Event-driven refreshes expose their completion as a {@link Mono}, so
+ * broker settlement waits for the upstream metadata lookup without blocking the
+ * consumer thread.
+ *
+ * @param <V> cached value type
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Slf4j
+public abstract class AbstractMetadataCache<V> {
+
+    /**
+     * Underlying Caffeine cache that loads values asynchronously on miss.
+     */
+    private final AsyncLoadingCache<Long, V> cache;
+
+    /**
+     * Maximum time, in seconds, {@link #getCache(long)} blocks waiting for a load to finish.
+     */
+    private final long loadTimeoutSeconds;
+
+    /**
+     * Short human-readable label used to identify this cache instance in log messages.
+     */
+    private final String name;
+
+    /**
+     * Builds the underlying Caffeine {@link AsyncLoadingCache} from the supplied
+     * tuning properties, applying the loader asynchronously off the caller's thread.
+     *
+     * @param cacheProps tuning knobs (max size, load timeout, stats) for the new cache
+     * @param name       short label used in log lines to distinguish this cache
+     * @param loader     source-of-truth function invoked on cache miss for a given key
+     */
+    protected AbstractMetadataCache(
+            DriverProperties.MetadataProperties.CacheProperties cacheProps,
+            String name,
+            Function<Long, Mono<V>> loader) {
+        this.name = name;
+        this.loadTimeoutSeconds = cacheProps.getLoadTimeoutSeconds();
+
+        RemovalListener<Long, V> removalListener =
+                (key, value, cause) -> log.debug("Evict {} cache, id={}, cause={}", name, key, cause);
+
+        Caffeine<Long, V> builder =
+                Caffeine.newBuilder().maximumSize(cacheProps.getMaxSize()).<Long, V>removalListener(removalListener);
+        if (cacheProps.isRecordStats()) {
+            builder.recordStats();
+        }
+
+        this.cache = builder.buildAsync((id, executor) -> {
+            log.debug("Load {} metadata, id={}", name, id);
+            return loader.apply(id).doOnSuccess(value -> postLoad(id, value)).toFuture();
+        });
+    }
+
+    /**
+     * Hook invoked after the underlying loader returns (including {@code null}). The
+     * default implementation is a no-op. Subclasses override this to keep secondary
+     * indexes (e.g. driver device-id set) in sync with the cache.
+     *
+     * @param id    cache key just loaded
+     * @param value loaded value, may be {@code null} when the upstream record is gone
+     */
+    protected void postLoad(long id, V value) {
+        // no-op
+    }
+
+    /**
+     * Returns the cached value for {@code id}, triggering the loader on miss. Bounded
+     * by {@code DriverProperties.MetadataProperties.CacheProperties#getLoadTimeoutSeconds()}.
+     *
+     * @param id cache key
+     * @return cached value, or {@code null} if loading timed out, was interrupted, or
+     * failed; callers are expected to treat {@code null} as "not available now"
+     */
+    public V getCache(long id) {
+        try {
+            return cache.get(id).get(loadTimeoutSeconds, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Interrupted while loading {} cache, id={}", name, id, e);
+            return null;
+        } catch (TimeoutException ignored) {
+            log.warn("Timed out loading {} cache after {}s, id={}", name, loadTimeoutSeconds, id);
+            return null;
+        } catch (ExecutionException e) {
+            log.error("Failed to load {} cache, id={}", name, id, e);
+            return null;
+        }
+    }
+
+    /**
+     * Refreshes the cache entry for {@code id} and exposes the upstream completion to
+     * the caller so broker settlement can follow the metadata transaction.
+     *
+     * <p>Behavior:
+     * <ul>
+     *   <li>Loader returns a non-null value: cache is updated and the value is returned.</li>
+     *   <li>Loader returns {@code null}: cache stays empty for this key (Caffeine
+     *       drops null loads); {@link #postLoad(long, Object)} still fires so the
+     *       subclass can clean up secondary state. Returns {@code null}.</li>
+     *   <li>Loader throws: a {@link ServiceException} is raised wrapping the cause so
+     *       the caller can react. Cache is left unchanged.</li>
+     * </ul>
+     *
+     * @param id cache key
+     * @return loaded value, or an empty completion if upstream reports the record is gone
+     */
+    public Mono<V> refreshCache(long id) {
+        return Mono.defer(() -> Mono.fromFuture(cache.synchronous().refresh(id)))
+                .timeout(Duration.ofSeconds(loadTimeoutSeconds))
+                .onErrorMap(
+                        error -> !(error instanceof ServiceException),
+                        error -> new ServiceException("Failed to refresh {} cache, id={}", name, id, error));
+    }
+
+    /**
+     * Removes the cache entry for {@code id}.
+     */
+    public void evictCache(long id) {
+        cache.synchronous().invalidate(id);
+    }
+
+    /**
+     * Clears all cached entries.
+     */
+    public void clearCache() {
+        cache.synchronous().invalidateAll();
+    }
+
+    /**
+     * Snapshot of Caffeine statistics (only meaningful when {@code recordStats} is on).
+     * Exposed for diagnostic endpoints; production code should not branch on it.
+     */
+    public CacheStats stats() {
+        return cache.synchronous().stats();
+    }
+}

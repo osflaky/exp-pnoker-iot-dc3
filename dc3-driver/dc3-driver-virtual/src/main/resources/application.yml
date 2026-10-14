@@ -1,0 +1,91 @@
+#
+# Copyright 2016-present the IoT DC3 original author or authors.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
+dc3:
+  driver:
+    tenant: default
+    name: Virtual Driver
+    code: VirtualDriver
+    type: DRIVER_CLIENT
+    remark: @project.description@
+    schedule:
+      # Read data regularly
+      read:
+        enable: true
+        cron: '0/30 * * * * ?'
+      custom:
+        enable: true
+        cron: '0/5 * * * * ?'
+    health:
+      device:
+        enable: true
+        cron: '0/15 * * * * ?'
+        timeout: 45
+        timeout-unit: SECONDS
+    driver-attribute:
+      - attribute-name: Host
+        attribute-code: host
+        attribute-type-flag: STRING
+        default-value: localhost
+        remark: Ip
+      - attribute-name: Port
+        attribute-code: port
+        attribute-type-flag: INT
+        default-value: 18600
+        remark: Port
+    point-attribute:
+      - attribute-name: Tag
+        attribute-code: tag
+        attribute-type-flag: STRING
+        default-value: TAG
+        remark: Point tag name
+    command-attribute:
+      - attribute-name: Payload Template
+        attribute-code: payloadTemplate
+        attribute-type-flag: STRING
+        default-value: '${value}'
+        remark: Template rendered with command params
+      - attribute-name: Response Template
+        attribute-code: responseTemplate
+        attribute-type-flag: STRING
+        default-value: '{}'
+        remark: Mock response template
+    event-attribute:
+      - attribute-name: Event Code Path
+        attribute-code: eventCodePath
+        attribute-type-flag: STRING
+        default-value: $.eventCode
+        remark: JSON path used to resolve event code
+      - attribute-name: Payload Path
+        attribute-code: payloadPath
+        attribute-type-flag: STRING
+        default-value: $.payload
+        remark: JSON path used to resolve event payload
+
+    buffer:
+      db-path: dc3/data/driver/virtual/buffer.db
+
+spring:
+  application:
+    name: @project.artifactId@
+  profiles:
+    active:
+      - ${NODE_ENV:dev}
+
+logging:
+  file:
+    name: dc3/logs/driver/virtual/${spring.application.name}.log

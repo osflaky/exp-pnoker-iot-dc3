@@ -1,0 +1,59 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.entity.ext;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+/**
+ * JSON extension object for command param metadata.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Schema(description = "JSON extension object for command param metadata")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class CommandParamExt extends BaseExt {
+
+    /**
+     * Extended content.
+     */
+    @Schema(description = "Extended content of the command param")
+    private Content content;
+
+    /**
+     * Extra command-param data not covered by typed fields.
+     */
+    @Schema(description = "Extended content payload for the command param")
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Content {
+
+        @Schema(
+                description = "Free-form string carrying extra command param data not covered by the typed fields",
+                example = "extra metadata")
+        private String keep;
+    }
+}

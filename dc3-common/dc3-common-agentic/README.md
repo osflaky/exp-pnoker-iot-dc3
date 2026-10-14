@@ -1,0 +1,53 @@
+# DC3 Common Agentic
+
+## Overview
+
+`dc3-common-agentic` is the agentic / AI SDK of the IoT DC3 platform and the engine behind `dc3-center-agentic`. Built
+on Spring AI, it provides the chat client, conversation memory, model management, and the suite of platform tools the
+model uses to read and operate platform resources.
+
+## Module Information
+
+- **Group ID**: io.github.pnoker
+- **Artifact ID**: dc3-common-agentic
+
+## Key Components
+
+| Area          | Components                                                                                                                                                          |
+|---------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Chat client   | `ChatClientConfig`, `ChatClientFactory` — build Spring AI `ChatClient`s per model configuration                                                                     |
+| Memory        | `MessageChatMemoryRepository` — JDBC-backed conversation memory                                                                                                     |
+| Configuration | `AgenticProperties` (prefix `dc3.agentic`), `AgenticApiGroupConfig`, `AgenticAutoConfiguration`                                                                     |
+| Tools         | `DriverTool`, `DeviceTool`, `PointTool`, `PointValueTool`, `ProfileTool`, `CommandTool`, `EventTool`, `UserTool`, `TenantTool`, `SystemTool`                        |
+| Model mgmt    | `ModelController` + MapStruct mappers (`Session`, `Message`, `Attachment`, `ModelProvider`, `ModelConfig`, `Action`)                                                |
+| Tool support  | `AgenticToolMetadata` annotation, `AgenticToolUtil`, `AgenticToolContextUtil`, `AgenticConversationIdUtil`, `AgenticVisualizationUtil`, `AgenticTokenEstimatorUtil` |
+
+## Configuration
+
+- Bound from the `dc3.agentic` prefix (`AgenticProperties`).
+- An OpenAI-compatible fallback model is configured via the `AGENTIC_FALLBACK_OPENAI_*` environment variables (see
+  `.env.example`).
+- Conversation memory uses the module's reactive R2DBC stores.
+
+## Dependencies
+
+- `spring-boot-starter-data-r2dbc` — reactive conversation/session persistence
+
+## Build Instructions
+
+```bash
+mvn -s .mvn/settings.xml -pl dc3-common/dc3-common-agentic -am package
+```
+
+## Testing
+
+Run the module tests from the repository root:
+
+```bash
+mvn -s .mvn/settings.xml -pl dc3-common/dc3-common-agentic -am test
+```
+
+## Related Modules
+
+- `dc3-center-agentic` — the service shell that exposes this SDK over HTTP (`/api/v3/agentic/**`)
+- `dc3-common-facade-*` — facades the platform tools call to reach other services

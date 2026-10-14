@@ -1,0 +1,131 @@
+#
+# Copyright 2016-present the IoT DC3 original author or authors.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
+# Shared gateway configuration: gRPC channels + route definitions.
+# Each environment profile only needs to override environment-specific settings.
+# Route URIs can be overridden via environment variables:
+#   GATEWAY_ROUTE_AUTH_TOKEN_URI, GATEWAY_ROUTE_AUTH_URI,
+#   GATEWAY_ROUTE_MANAGER_URI, GATEWAY_ROUTE_DATA_URI,
+#   GATEWAY_ROUTE_AGENTIC_URI
+
+spring:
+  # gRPC client configuration
+  grpc:
+    client:
+      channel:
+        dc3-center-auth:
+          target: 'static://${CENTER_AUTH_HOST:dc3-center-auth}:${CENTER_AUTH_GRPC_PORT:9300}'
+          keepalive:
+            time: 5m
+            timeout: 20s
+            without-calls: true
+  # Spring Cloud Gateway WebFlux configuration
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            # OAuth discovery and public token endpoints for MCP clients
+            - id: oauth_metadata_route
+              uri: ${GATEWAY_ROUTE_AUTH_URI:http://${CENTER_AUTH_HOST:dc3-center-auth}:8300}
+              predicates:
+                - Path=/.well-known/oauth-authorization-server,/oauth2/jwks,/oauth2/token,/oauth2/revoke,/oauth2/register
+              filters:
+                - PrefixPath=/auth
+            # OAuth authorization endpoint requires an existing DC3 login context
+            - id: oauth_authorize_route
+              uri: ${GATEWAY_ROUTE_AUTH_URI:http://${CENTER_AUTH_HOST:dc3-center-auth}:8300}
+              predicates:
+                - Path=/oauth2/authorize
+              filters:
+                - PrefixPath=/auth
+                - Authentic
+            # Token route for the pre-authentication endpoints (no authentication
+            # required): salt, generate (login) and change_password (self-service
+            # with the current password). IMPORTANT: This route MUST stay defined
+            # BEFORE auth_route. The gateway matches routes in definition order
+            # (first match wins), so these public paths are carved out of the
+            # /api/v3/auth/** wildcard below purely by ordering — do not move this
+            # route after auth_route or the login endpoint will silently require
+            # authentication. /token/check and /token/cancel are deliberately NOT
+            # listed: they carry @PreAuthorize and need the Authentic filter to
+            # inject the caller identity, so they fall through to auth_route —
+            # routing them publicly here would leave them permanently unauthenticated.
+            - id: auth_route_token
+              uri: ${GATEWAY_ROUTE_AUTH_TOKEN_URI:http://${CENTER_AUTH_HOST:dc3-center-auth}:8300/}
+              predicates:
+                - Path=/api/v3/auth/token/salt,/api/v3/auth/token/generate,/api/v3/auth/token/change_password
+              filters:
+                - StripPrefix=2
+            # Auth route for the full authenticated auth-center surface: identity, tenant,
+            # RBAC, dictionary, OAuth/MCP management, etc. The public /token path above is
+            # excluded only by route ordering; every other auth endpoint requires the
+            # Authentic filter.
+            - id: auth_route
+              uri: ${GATEWAY_ROUTE_AUTH_URI:http://${CENTER_AUTH_HOST:dc3-center-auth}:8300}
+              predicates:
+                - Path=/api/v3/auth/**
+              filters:
+                - StripPrefix=2
+                - Authentic
+            # Manager route for device and driver management (requires authentication)
+            - id: manager_route
+              uri: ${GATEWAY_ROUTE_MANAGER_URI:http://${CENTER_MANAGER_HOST:dc3-center-manager}:8400}
+              predicates:
+                - Path=/api/v3/manager/**
+              filters:
+                - StripPrefix=2
+                - Authentic
+            # Data route for point value operations (requires authentication)
+            - id: data_route
+              uri: ${GATEWAY_ROUTE_DATA_URI:http://${CENTER_DATA_HOST:dc3-center-data}:8500}
+              predicates:
+                - Path=/api/v3/data/**
+              filters:
+                - StripPrefix=2
+                - Authentic
+            # Agentic route for AI chat operations (requires authentication)
+            - id: agentic_route
+              uri: ${GATEWAY_ROUTE_AGENTIC_URI:http://${CENTER_AGENTIC_HOST:dc3-center-agentic}:8600}
+              predicates:
+                - Path=/api/v3/agentic/**
+              filters:
+                - StripPrefix=2
+                - Authentic
+
+dc3:
+  mcp:
+    gateway:
+      resource: ${DC3_MCP_GATEWAY_RESOURCE:http://localhost:8000/mcp}
+      authorization-server: ${DC3_MCP_GATEWAY_AUTHORIZATION_SERVER:http://localhost:8000}
+      backend-base-urls:
+        dc3-center-auth: ${GATEWAY_ROUTE_AUTH_URI:http://${CENTER_AUTH_HOST:dc3-center-auth}:8300}/auth
+        dc3-center-manager: ${GATEWAY_ROUTE_MANAGER_URI:http://${CENTER_MANAGER_HOST:dc3-center-manager}:8400}/manager
+        dc3-center-data: ${GATEWAY_ROUTE_DATA_URI:http://${CENTER_DATA_HOST:dc3-center-data}:8500}/data
+        dc3-center-agentic: ${GATEWAY_ROUTE_AGENTIC_URI:http://${CENTER_AGENTIC_HOST:dc3-center-agentic}:8600}/agentic
+
+  # OAuth RS256 ticket verification on Authentic-filtered routes (Phase 1 of
+  # docs/design/token-unification-mcp-first-cli.md). Keep enabled=false until the
+  # auth center's issuer/jwks values are production-stable; when disabled the
+  # gateway accepts only classic login tickets and behaviour is unchanged.
+  # issuer/audience must match dc3.common.oauth in the auth center configuration.
+  gateway:
+    oauth:
+      enabled: ${DC3_GATEWAY_OAUTH_ENABLED:false}
+      jwks-url: ${DC3_GATEWAY_OAUTH_JWKS_URL:http://${CENTER_AUTH_HOST:dc3-center-auth}:8300/auth/oauth2/jwks}
+      issuer: ${DC3_OAUTH_ISSUER:http://localhost:8300/auth}
+      audience: ${DC3_OAUTH_AUDIENCE:dc3-mcp}

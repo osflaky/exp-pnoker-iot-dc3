@@ -1,0 +1,78 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.constant.common;
+
+/**
+ * Symbol related constants
+ * <p>
+ * Provides commonly used symbol constants for string manipulation and formatting.
+ * </p>
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+public class SymbolConstant {
+
+    /**
+     * dot constant.
+     */
+    public static final String DOT = ".";
+
+    /**
+     * underscore constant.
+     */
+    public static final String UNDERSCORE = "_";
+
+    /**
+     * hyphen constant.
+     */
+    public static final String HYPHEN = "-";
+
+    /**
+     * asterisk constant.
+     */
+    public static final String ASTERISK = "*";
+
+    /**
+     * hashtag constant.
+     */
+    public static final String HASHTAG = "#";
+
+    /**
+     * colon constant.
+     */
+    public static final String COLON = ":";
+
+    /**
+     * double colon constant.
+     */
+    public static final String DOUBLE_COLON = "::";
+
+    /**
+     * slash constant.
+     */
+    public static final String SLASH = "/";
+
+    /**
+     * double slash constant.
+     */
+    public static final String DOUBLE_SLASH = "//";
+
+    private SymbolConstant() {
+        throw new IllegalStateException(BaseConstant.UTILITY_CLASS);
+    }
+}

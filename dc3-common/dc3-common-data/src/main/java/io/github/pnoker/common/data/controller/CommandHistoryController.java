@@ -1,0 +1,157 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.data.controller;
+
+import io.github.pnoker.common.base.BaseController;
+import io.github.pnoker.common.constant.service.DataConstant;
+import io.github.pnoker.common.data.biz.CommandHistoryService;
+import io.github.pnoker.common.data.entity.builder.CommandHistoryBuilder;
+import io.github.pnoker.common.data.entity.vo.CommandCallVO;
+import io.github.pnoker.common.data.entity.vo.CommandHistoryQueryVO;
+import io.github.pnoker.common.data.entity.vo.CommandHistoryVO;
+import io.github.pnoker.common.exception.NotFoundException;
+import io.github.pnoker.db.core.page.OffsetPage;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.extensions.Extension;
+import io.swagger.v3.oas.annotations.extensions.ExtensionProperty;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Mono;
+
+/**
+ * REST controller for custom command call management.
+ *
+ * @author pnoker
+ * @since 2026.5.23
+ */
+@Tag(
+        name = "command_history",
+        description =
+                "Command execution audit trail: query historical records of commands sent to devices including execution status, timestamps, and response data")
+@Slf4j
+@RestController
+@RequestMapping(DataConstant.COMMAND_HISTORY_URL_PREFIX)
+@RequiredArgsConstructor
+public class CommandHistoryController implements BaseController {
+
+    private final CommandHistoryService commandHistoryService;
+
+    private final CommandHistoryBuilder commandHistoryBuilder;
+
+    /**
+     * Send a downward control command to a device for the current tenant and record
+     * the call in command history.
+     *
+     * @param entityVO command payload to dispatch to the device (target device, command and parameters)
+     * @return the ID of the newly created command-call history record; use it to poll execution result and response data
+     */
+    @PreAuthorize("@perm.can('command_history', 'add')")
+    @Operation(
+            summary = "Call Command",
+            description =
+                    "Send a downward control command to a device for the current tenant and "
+                            + "record the call in command history. Returns the new history record ID; use it to poll the execution result and response data.",
+            extensions =
+                    @Extension(
+                            name = "x-dc3-ai",
+                            properties = {
+                                @ExtensionProperty(name = "riskLevel", value = "HIGH"),
+                                @ExtensionProperty(name = "destructive", value = "true"),
+                                @ExtensionProperty(name = "idempotent", value = "false"),
+                                @ExtensionProperty(name = "openWorld", value = "true")
+                            }))
+    @PostMapping("/call")
+    public Mono<String> call(@Validated @RequestBody CommandCallVO entityVO) {
+        return getTenantId()
+                .flatMap(tenantId -> commandHistoryService.call(tenantId, commandHistoryBuilder.buildBOByVO(entityVO)));
+    }
+
+    /**
+     * Fetch one command-call history record by its record ID (tenant-scoped),
+     * including execution status, timestamps and the device response.
+     *
+     * @param recordId record ID returned by the Call Command endpoint; must resolve to a command-call history entry owned by the current tenant
+     * @return the matched CommandHistoryVO; fails if not found or not tenant-owned
+     */
+    @PreAuthorize("@perm.can('command_history', 'get')")
+    @Operation(
+            summary = "Get Command History by Record ID",
+            description =
+                    "Fetch one command-call history record by its record ID "
+                            + "(tenant-scoped), including execution status, timestamps and the device response. Use to check the outcome of a command issued via Call Command.",
+            extensions =
+                    @Extension(
+                            name = "x-dc3-ai",
+                            properties = {
+                                @ExtensionProperty(name = "riskLevel", value = "LOW"),
+                                @ExtensionProperty(name = "destructive", value = "false"),
+                                @ExtensionProperty(name = "idempotent", value = "true"),
+                                @ExtensionProperty(name = "openWorld", value = "false")
+                            }))
+    @GetMapping("/get_by_record_id")
+    public Mono<CommandHistoryVO> getByRecordId(
+            @Parameter(
+                            description =
+                                    "Record ID returned by the Call Command endpoint; must resolve to a command-call history entry owned by the current tenant",
+                            example = "cmd_20260523_a1b2c3d4")
+                    @NotBlank
+                    @RequestParam(name = "record_id")
+                    String recordId) {
+        return getTenantId()
+                .flatMap(tenantId -> commandHistoryService
+                        .getByRecordId(tenantId, recordId)
+                        .switchIfEmpty(Mono.error(new NotFoundException("Command history does not exist"))));
+    }
+
+    /**
+     * Page through command-call history for the current tenant with filters such as
+     * device, command and execution status over a time window.
+     *
+     * @param queryVO optional query filters (device, command, status, time window); a default empty query is used when null
+     * @return a page of CommandHistoryVO matching the query
+     */
+    @PreAuthorize("@perm.can('command_history', 'list')")
+    @Operation(
+            summary = "List Command History Records",
+            description =
+                    "Page through command-call history for the current tenant with "
+                            + "filters such as device, command and execution status over a time window. Returns a page of records; use to audit which commands ran and their results.",
+            extensions =
+                    @Extension(
+                            name = "x-dc3-ai",
+                            properties = {
+                                @ExtensionProperty(name = "riskLevel", value = "LOW"),
+                                @ExtensionProperty(name = "destructive", value = "false"),
+                                @ExtensionProperty(name = "idempotent", value = "true"),
+                                @ExtensionProperty(name = "openWorld", value = "false")
+                            }))
+    @PostMapping("/list")
+    public Mono<OffsetPage<CommandHistoryVO>> list(@RequestBody(required = false) CommandHistoryQueryVO queryVO) {
+        return getTenantId().flatMap(tenantId -> commandHistoryService.list(tenantId, queryVO));
+    }
+}

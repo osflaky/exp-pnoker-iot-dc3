@@ -1,0 +1,329 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/**
+ * AgenticModel data contract.
+ */
+export interface AgenticModel {
+  model: string;
+  label: string;
+  stream: boolean;
+  toolCall: boolean;
+  vision: boolean;
+  reasoning: boolean;
+  temperature?: number;
+  maxTokens?: number;
+}
+
+/**
+ * AgenticProvider data contract.
+ */
+export interface AgenticProvider {
+  id?: string;
+  name: string;
+  providerType: string;
+  baseUrl: string;
+  defaultFlag?: string;
+  enableFlag?: string;
+  remark?: string;
+  createTime?: string;
+  operateTime?: string;
+
+  [key: string]: unknown;
+}
+
+/**
+ * Agentic model configuration.
+ */
+export interface AgenticModelConfig {
+  /** Inlined from AgenticModel. */
+  model: string;
+  /** Inlined from AgenticModel. */
+  label: string;
+  /** Inlined from AgenticModel. */
+  stream: boolean;
+  /** Inlined from AgenticModel. */
+  toolCall: boolean;
+  /** Inlined from AgenticModel. */
+  vision: boolean;
+  /** Inlined from AgenticModel. */
+  reasoning: boolean;
+  /** Inlined from AgenticModel. */
+  temperature?: number;
+  /** Inlined from AgenticModel. */
+  maxTokens?: number;
+  id?: string;
+  providerId?: string;
+  providerName?: string;
+  defaultFlag?: string;
+  enableFlag?: string;
+  remark?: string;
+  createTime?: string;
+  operateTime?: string;
+
+  [key: string]: unknown;
+}
+
+/**
+ * AgenticSession data contract.
+ */
+export interface AgenticSession {
+  conversationId: string;
+  title?: string;
+  summary?: string;
+  sessionExt?: AgenticSessionExt;
+  createTime?: string;
+  operateTime?: string;
+
+  [key: string]: unknown;
+}
+
+/**
+ * Agentic session extension fields.
+ */
+export interface AgenticSessionExt {
+  model?: string;
+  reasoningEnabled?: boolean;
+  temperature?: number;
+  maxTokens?: number;
+  /** Optional visual category metadata used by rich clients and mock demos. */
+  icon?: 'monitor' | 'warning' | 'trend' | 'connection' | 'odometer' | 'tools' | 'operation' | 'lightning';
+  category?: string;
+}
+
+/**
+ * agentic message role type alias.
+ */
+export type AgenticMessageRole = 'user' | 'assistant' | 'system';
+/**
+ * Agentic message status union.
+ */
+export type AgenticMessageStatus = 'COMPLETED' | 'FAILED' | 'CANCELLED';
+
+/**
+ * AgenticMessage data contract.
+ */
+export interface AgenticMessage {
+  id: string;
+  role: AgenticMessageRole;
+  content: string;
+  contentExt?: AgenticMessageContent;
+  model?: string;
+  messageIndex?: number;
+  status?: AgenticMessageStatus;
+  streaming?: boolean;
+  reasoning?: string;
+  finishReason?: string;
+  createTime?: string;
+
+  [key: string]: unknown;
+}
+
+/**
+ * AgenticMessageContent data contract.
+ */
+export interface AgenticMessageContent {
+  text?: string;
+  format?: string;
+  attachments?: string[];
+  tools?: string[];
+  traces?: AgenticTraceEvent[];
+  charts?: AgenticVisualizationSpec[];
+  contexts?: AgenticMessageContext[];
+  tokens?: AgenticMessageTokens;
+  reasoning?: boolean;
+  reasoningContent?: string;
+  /** The assistant recovered through a fallback path after a tool failure. */
+  recovered?: boolean;
+}
+
+/**
+ * Agentic visualization type union.
+ */
+export type AgenticVisualizationType =
+  'line' | 'area' | 'column' | 'bar' | 'pie' | 'donut' | 'heatmap' | 'scatter' | 'stat';
+
+/**
+ * Agentic visualization specification.
+ */
+export interface AgenticVisualizationSpec {
+  id?: string;
+  type: AgenticVisualizationType;
+  title?: string;
+  description?: string;
+  dataset: Array<Record<string, unknown>>;
+  encode: {
+    x?: string;
+    y?: string;
+    color?: string;
+    size?: string;
+    shape?: string;
+  };
+  scale?: Record<string, unknown>;
+  meta?: Record<string, unknown>;
+  annotations?: AgenticVisualizationAnnotation[];
+}
+
+/**
+ * Agentic visualization annotation.
+ */
+export interface AgenticVisualizationAnnotation {
+  type?: string;
+  value?: unknown;
+  label?: string;
+}
+
+/**
+ * Agentic message context.
+ */
+export interface AgenticMessageContext {
+  type: 'attachment' | 'retrieval' | 'memory' | 'tool' | 'system';
+  content: string;
+}
+
+/**
+ * AgenticMessageTokens data contract.
+ */
+export interface AgenticMessageTokens {
+  input?: number;
+  output?: number;
+  text?: number;
+  context?: number;
+  system?: number;
+  memory?: number;
+}
+
+/**
+ * AgenticAttachment data contract.
+ */
+export interface AgenticAttachment {
+  id: string;
+  conversationId: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+  filePath?: string;
+  createTime?: string;
+
+  [key: string]: unknown;
+}
+
+/**
+ * AgenticAction data contract.
+ */
+export interface AgenticAction {
+  id?: string;
+  actionId: string;
+  conversationId: string;
+  actionType: string;
+  title: string;
+  description: string;
+  payload: Record<string, unknown>;
+  status: number;
+  expireTime?: string;
+  remark?: string;
+
+  [key: string]: unknown;
+}
+
+/**
+ * AgenticChatMessage data contract.
+ */
+export interface AgenticChatMessage {
+  role: AgenticMessageRole;
+  content: string;
+}
+
+/**
+ * AgenticChatCompletionRequest data contract.
+ */
+export interface AgenticChatCompletionRequest {
+  model?: string;
+  messages: AgenticChatMessage[];
+  temperature?: number;
+  maxTokens?: number;
+  stream: boolean;
+  /**
+   * Stable client-generated conversation ID. The backend uses this to replay chat
+   * memory across turns, so callers MUST reuse the same value for follow-up
+   * messages and only generate a fresh UUID when starting a new conversation.
+   * Leaving this empty is rejected by the backend with HTTP 400.
+   */
+  conversationId: string;
+  attachments?: string[];
+  reasoning?: boolean;
+}
+
+/**
+ * AgenticChatCompletionResponse data contract.
+ */
+export interface AgenticChatCompletionResponse {
+  id?: string;
+  object?: string;
+  created?: number;
+  model?: string;
+  choices?: Array<{
+    index?: number;
+    message?: {
+      role?: AgenticMessageRole;
+      content?: string;
+      // DC3's own extension field — camelCase per the body-field law; only
+      // OpenAI protocol fields on this envelope (finish_reason, usage.*)
+      // keep their snake_case wire names.
+      contentExt?: AgenticMessageContent;
+    };
+    finishReason?: string;
+    finish_reason?: string;
+  }>;
+  usage?: {
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+}
+
+/**
+ * AgenticStreamCallbacks data contract.
+ */
+export interface AgenticStreamCallbacks {
+  signal?: AbortSignal;
+  onDelta?: (content: string) => void;
+  onReasoning?: (content: string) => void;
+  onEvent?: (event: AgenticTraceEvent) => void;
+  onVisualization?: (visualization: AgenticVisualizationSpec) => void;
+  onFinish?: (reason: string) => void;
+  onDone?: () => void;
+  onError?: (error: Error) => void;
+}
+
+/**
+ * AgenticTraceEvent data contract.
+ */
+export interface AgenticTraceEvent {
+  id?: string;
+  type: 'tool' | 'reasoning' | 'error';
+  title: string;
+  detail?: string;
+  name?: string;
+  phase?: 'start' | 'result' | 'error';
+  status?: 'running' | 'success' | 'empty' | 'failed';
+  code?: string;
+  created?: number;
+}

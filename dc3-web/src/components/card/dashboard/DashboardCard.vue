@@ -1,0 +1,513 @@
+<!--
+  - Copyright 2016-present the IoT DC3 original author or authors.
+  -
+  - This program is free software: you can redistribute it and/or modify
+  - it under the terms of the GNU Affero General Public License as
+  - published by the Free Software Foundation, either version 3 of the
+  - License, or (at your option) any later version.
+  -
+  - This program is distributed in the hope that it will be useful,
+  - but WITHOUT ANY WARRANTY; without even the implied warranty of
+  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  - GNU Affero General Public License for more details.
+  -
+  - You should have received a copy of the GNU Affero General Public License
+  - along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  -->
+
+<!--
+  DashboardCard — unified wrapper for every dashboard-family card on Home
+  and the event-overview page. Bakes in the shared look (shadow:never,
+  12px/16px header, 600/#303133 title, 8/16 footer with #fafafa bg) and
+  the shared plumbing (refresh button + spinner, v-loading target, empty
+  state, badge, autoRefresh interval picker), so individual cards stay
+  focused on their body markup and business logic.
+
+  The footer is part of the family contract, not an opt-in: left side is
+  the data freshness stamp ("Updated at HH:mm:ss"), recorded automatically
+  every time `loading` settles without `error`; right side carries an
+  explanatory line (`footerMeta` prop or the `footer-meta` slot — ranking
+  rules, window hints, count digests). Pass `:footer="false"` to drop the
+  strip entirely, or fill the legacy `footer` slot to replace both sides.
+
+  Height is fixed 440 by default — the value the comments in TrendChart /
+  LatencyChart call out as the "family baseline". Fixed-over-flexible is
+  deliberate: el-row's align-items:stretch lets a tall LiveFeed content
+  blob drag siblings with it whenever height:100% falls back to auto, so
+  we break that circular dependency at the card level.
+-->
+<template>
+  <el-card
+    :class="[`dashboard-card--${bodyMode}`, {'dashboard-card--tabs': variant === 'tabs'}]"
+    :style="rootStyle"
+    class="dashboard-card"
+    shadow="never"
+  >
+    <template #header>
+      <div class="dashboard-card__header">
+        <!-- Title region — default is text-only; `variant=tabs` hands the
+             whole region to the caller (AnalyticsTabs uses it for el-tabs). -->
+        <div class="dashboard-card__title">
+          <slot name="title">
+            <span class="dashboard-card__title-text">{{ title }}</span>
+            <el-badge
+              v-if="badge !== null && badge !== undefined && badge !== 0 && badge !== ''"
+              :max="99"
+              :value="badge"
+              class="dashboard-card__badge"
+              type="danger"
+            />
+            <span v-if="subtitle" class="dashboard-card__subtitle">{{ subtitle }}</span>
+            <slot name="title-extra"/>
+          </slot>
+        </div>
+
+        <div class="dashboard-card__tools">
+          <slot name="tools"/>
+          <el-segmented
+            v-if="autoRefresh && autoRefresh.length"
+            :model-value="interval"
+            :options="autoRefresh"
+            size="small"
+            @update:model-value="onIntervalChange"
+          />
+          <el-button
+            v-if="refreshable"
+            :aria-label="title ? `${title}: ${t('common.refresh')}` : t('common.refresh')"
+            :icon="Refresh"
+            :loading="spinButton"
+            circle
+            size="small"
+            @click="emit('refresh')"
+          />
+        </div>
+      </div>
+    </template>
+
+    <div v-loading="loadBody" class="dashboard-card__body">
+      <div v-if="error" class="dashboard-card__error" role="alert">
+        <el-alert :closable="false" :title="errorText ?? t('common.loadFailed')" show-icon type="error">
+          <el-button :loading="loading" link type="danger" @click="emit('refresh')">
+            {{ retryText ?? t('common.retry') }}
+          </el-button>
+        </el-alert>
+      </div>
+      <div v-else-if="empty" class="dashboard-card__empty">
+        <el-empty :description="emptyText" :image-size="emptyImageSize"/>
+      </div>
+      <div v-else class="dashboard-card__content">
+        <slot/>
+      </div>
+    </div>
+
+    <div v-if="showFooter" class="dashboard-card__footer">
+      <slot name="footer">
+        <span class="dashboard-card__footer-time">{{ footerTimeLabel }}</span>
+        <span class="dashboard-card__footer-meta">
+          <slot name="footer-meta">{{ footerMeta }}</slot>
+        </span>
+      </slot>
+    </div>
+  </el-card>
+</template>
+
+<script lang="ts" setup>
+import {computed, onUnmounted, ref, watch} from 'vue';
+import {useI18n} from 'vue-i18n';
+import {Refresh} from '@element-plus/icons-vue';
+
+const {t, locale} = useI18n();
+
+/**
+ *
+ */
+export type DashboardCardHeight = number | 'auto';
+/**
+ *
+ */
+export type DashboardCardBodyMode = 'plain' | 'chart' | 'scroll';
+/**
+ *
+ */
+export type DashboardCardLoadingTarget = 'body' | 'button' | 'none';
+/**
+ *
+ */
+export type DashboardCardVariant = 'default' | 'tabs';
+
+/**
+ *
+ */
+export interface AutoRefreshOption {
+  label: string;
+  value: number;
+}
+
+const props = withDefaults(
+  defineProps<{
+    /** Header-left title text. Ignored when `variant=tabs` and the caller fills the `title` slot. */
+    title?: string;
+    /** Red count chip next to the title. Falsy / 0 suppresses it. */
+    badge?: number | string | null;
+    /** Small grey line after the title — used for e.g. AlertStormSources' window hint. */
+    subtitle?: string;
+    /** `default` renders the title text; `tabs` hands the title region to el-tabs via the slot. */
+    variant?: DashboardCardVariant;
+    /** Card height. Number = fixed px (baseline 440). `auto` = min-height:300 + stretch. */
+    height?: DashboardCardHeight;
+    /**
+     * Body layout preset:
+     *  - `plain`  — default card body (padding from Element).
+     *  - `chart`  — flex:1 canvas, no body padding, min-height:0 chain.
+     *  - `scroll` — padding:0 + overflow:auto so long lists scroll inside the card.
+     */
+    bodyMode?: DashboardCardBodyMode;
+    /** Spinner state. Wired to the refresh button and (optionally) a v-loading overlay. */
+    loading?: boolean;
+    /** Where `loading` renders its spinner. `body` covers the content, `button` only spins the refresh chip. */
+    loadingTarget?: DashboardCardLoadingTarget;
+    /** Show `<el-empty>` instead of the body slot when true. */
+    empty?: boolean;
+    emptyText?: string;
+    emptyImageSize?: number;
+    error?: boolean;
+    errorText?: string;
+    retryText?: string;
+    refreshable?: boolean;
+    /** If provided, an `el-segmented` is rendered left of the refresh button (interval in ms; 0 = off). */
+    autoRefresh?: AutoRefreshOption[];
+    /** v-model target for the autoRefresh segmented (ms; 0 = off). */
+    interval?: number;
+    /** Right-aligned explanatory line in the standard footer (ranking rule, window hint, digest). */
+    footerMeta?: string;
+    /** Master switch for the standard footer. Only the legacy `footer` slot can fully replace it. */
+    footer?: boolean;
+  }>(),
+  {
+    title: '',
+    badge: null,
+    subtitle: '',
+    variant: 'default',
+    height: 440,
+    bodyMode: 'plain',
+    loading: false,
+    loadingTarget: 'body',
+    empty: false,
+    emptyText: '',
+    emptyImageSize: 80,
+    error: false,
+    refreshable: true,
+    autoRefresh: undefined,
+    interval: 0,
+    footerMeta: '',
+    footer: true,
+  }
+);
+
+const emit = defineEmits<{
+  (e: 'refresh'): void;
+  (e: 'update:interval', value: number): void;
+}>();
+
+const showFooter = computed(() => props.footer !== false);
+
+// ---- footer freshness stamp --------------------------------------------
+// Recorded whenever a load settles successfully (loading true → false with
+// no error). Consumers don't track their own "lastRefreshed" — manual
+// refreshes, autoRefresh polls and tab/range reloads all funnel through
+// the same `loading` cycle, so the stamp stays correct for every trigger.
+// A failed load keeps the previous stamp: the body still shows the last
+// good data, so the time it arrived is still the honest label.
+const lastRefreshed = ref<number | null>(null);
+watch(
+  () => props.loading,
+  (next, prev) => {
+    if (prev && !next && !props.error) lastRefreshed.value = Date.now();
+  }
+);
+
+const footerTimeLabel = computed(() => {
+  if (lastRefreshed.value === null) return '—';
+  const time = new Date(lastRefreshed.value).toLocaleTimeString(
+    locale.value === 'zh' ? 'zh-CN' : 'en-US',
+    {hour12: false}
+  );
+  return t('common.updatedAt', {time});
+});
+
+const rootStyle = computed(() => {
+  if (props.height === 'auto') {
+    return {minHeight: '300px', height: '100%'};
+  }
+  return {height: `${props.height}px`};
+});
+
+const loadBody = computed(() => props.loading && props.loadingTarget === 'body');
+const spinButton = computed(() => props.loading && props.loadingTarget !== 'none');
+
+// ---- autoRefresh poll ---------------------------------------------------
+// The wrapper owns the timer so every card gets the same cadence semantics
+// (emit 'refresh' every `interval` ms when > 0, clear on unmount/change).
+// Cards just listen to @refresh and run their load() — same function they
+// pass to the manual button.
+let timer: ReturnType<typeof setInterval> | null = null;
+const clearPoll = () => {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+};
+const startPoll = (ms: number) => {
+  clearPoll();
+  if (ms > 0) {
+    timer = setInterval(() => emit('refresh'), ms);
+  }
+};
+const onIntervalChange = (value: string | number | boolean | undefined) => {
+  const ms = Number(value) || 0;
+  emit('update:interval', ms);
+  startPoll(ms);
+};
+watch(
+  () => props.interval,
+  (ms) => startPoll(ms || 0),
+  {immediate: true}
+);
+onUnmounted(clearPoll);
+
+// ---- exposed API --------------------------------------------------------
+defineExpose({
+  refresh: () => emit('refresh'),
+});
+</script>
+
+<style lang="scss" scoped>
+.dashboard-card {
+  display: flex;
+  flex-direction: column;
+  border-color: var(--dc3-border-base);
+
+  :deep(.el-card__header) {
+    padding: var(--dc3-space-3) var(--dc3-space-4);
+    background: linear-gradient(180deg, var(--dc3-bg-elevated-strong), transparent);
+  }
+
+  // Body holds both the content region and (if present) the footer. We use
+  // the card body as a flex column so body + footer split the vertical
+  // budget predictably.
+  :deep(.el-card__body) {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+
+  // ---- header ----------------------------------------------------------
+  .dashboard-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .dashboard-card__title {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .dashboard-card__title-text {
+    position: relative;
+    padding-left: var(--dc3-space-3);
+    font-weight: 650;
+    color: var(--dc3-text-primary);
+
+    &::before {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 4px;
+      height: 14px;
+      border-radius: var(--dc3-radius-full);
+      background: var(--dc3-brand-gradient);
+      content: '';
+      transform: translateY(-50%);
+    }
+  }
+
+  .dashboard-card__subtitle {
+    font-size: 12px;
+    font-weight: normal;
+    color: var(--dc3-text-muted);
+  }
+
+  // Badge sits inline with the title — override the default floating
+  // placement so it reads as part of the label rather than a superscript.
+  .dashboard-card__badge {
+    :deep(.el-badge__content) {
+      transform: none;
+      position: static;
+    }
+  }
+
+  .dashboard-card__tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    max-width: 100%;
+    flex-shrink: 1;
+
+    > * {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    :deep(.el-segmented) {
+      min-width: 0;
+      max-width: 100%;
+    }
+  }
+
+  // ---- body ------------------------------------------------------------
+  .dashboard-card__body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dashboard-card__content {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dashboard-card__empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 0;
+  }
+
+  .dashboard-card__error {
+    padding: var(--dc3-space-4);
+  }
+
+  // ---- bodyMode variants ----------------------------------------------
+  // plain — Element default body padding, no special overflow treatment.
+  &--plain {
+    :deep(.el-card__body) {
+      padding: 16px;
+    }
+
+    .dashboard-card__body {
+      // Padding was already applied at card-body level; content fills.
+    }
+  }
+
+  // chart — the content slot is expected to host a G2 canvas that reads
+  // its size from the container (autoFit). We give it full-bleed room so
+  // the chart extends to the card edges; consumers typically pass a div
+  // with `width: 100%; height: 100%;` inside.
+  &--chart {
+    .dashboard-card__content {
+      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      padding: 8px 16px 16px;
+    }
+  }
+
+  // scroll — long lists (timelines / rows). padding:0 so the list hugs
+  // the card edges; overflow:auto so content never pushes past the card's
+  // fixed height. This is what LiveFeed / AlertList / RecentUnconfirmed
+  // all need.
+  &--scroll {
+    .dashboard-card__content {
+      overflow: auto;
+      padding: 0;
+    }
+  }
+
+  // ---- footer ----------------------------------------------------------
+  // Standard strip beneath the body: time on the left (auto-recorded
+  // freshness stamp), explanatory meta on the right. 8/16 padding,
+  // secondary text, light top border and subtle bg.
+  .dashboard-card__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    font-size: 12px;
+    color: var(--dc3-text-muted);
+    border-top: 1px solid var(--dc3-border-base);
+    background: var(--dc3-bg-muted);
+    flex-shrink: 0;
+  }
+
+  .dashboard-card__footer-time {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  // Right cluster hosts either the footerMeta prop text or a caller-filled
+  // footer-meta slot (TopologySankey stacks a digest + a window chip), so
+  // it lays out as a right-aligned inline flex that can ellipsize.
+  .dashboard-card__footer-meta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--dc3-space-2);
+    min-width: 0;
+    overflow: hidden;
+    text-align: right;
+  }
+
+  // ---- variant: tabs ---------------------------------------------------
+  // AnalyticsTabs replaces the title with el-tabs. Hide the default title
+  // breather so the tab bar can sit flush in the header.
+  &--tabs {
+    .dashboard-card__title {
+      gap: 0;
+    }
+
+    :deep(.el-tabs__nav-wrap::after) {
+      display: none;
+    }
+
+    :deep(.el-tabs__header) {
+      margin-bottom: 0;
+    }
+  }
+
+  @media (max-width: $breakpoint-xs-max) {
+    .dashboard-card__header {
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .dashboard-card__title,
+    .dashboard-card__tools {
+      width: 100%;
+      flex: 1 1 100%;
+    }
+
+    .dashboard-card__tools {
+      justify-content: flex-end;
+      flex-wrap: wrap;
+
+      :deep(.el-segmented) {
+        flex: 1 1 auto;
+        overflow-x: auto;
+      }
+    }
+  }
+}
+</style>

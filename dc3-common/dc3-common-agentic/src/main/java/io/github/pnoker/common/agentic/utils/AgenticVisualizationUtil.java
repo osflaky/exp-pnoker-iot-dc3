@@ -1,0 +1,293 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.agentic.utils;
+
+import io.github.pnoker.common.agentic.entity.model.AgenticVisualizationSpec;
+import io.github.pnoker.common.constant.common.BaseConstant;
+import io.github.pnoker.common.constant.service.AgenticConstant;
+import java.lang.reflect.RecordComponent;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+/**
+ * Builders for safe agentic visualization specs.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+public class AgenticVisualizationUtil {
+
+    public static final String FIELD_INDEX = "index";
+
+    public static final String FIELD_VALUE = "value";
+
+    public static final String FIELD_SERIES = "series";
+
+    private AgenticVisualizationUtil() {
+        throw new IllegalStateException(BaseConstant.UTILITY_CLASS);
+    }
+
+    /**
+     * Numeric series from newest first.
+     *
+     * @param values values
+     * @return numeric series from newest first result
+     */
+    public static NumericSeries numericSeriesFromNewestFirst(List<String> values) {
+        if (Objects.isNull(values) || values.isEmpty()) {
+            return new NumericSeries(List.of(), NumericSummary.empty(0));
+        }
+
+        List<Map<String, Object>> dataset = new ArrayList<>();
+        List<Double> numericValues = new ArrayList<>();
+        int rendered = 0;
+        for (int i = values.size() - 1; i >= 0; i--) {
+            Double value = parseNumericValue(values.get(i));
+            if (Objects.isNull(value)) {
+                continue;
+            }
+            dataset.add(mapFromRecord(new NumericPoint(rendered, value, FIELD_VALUE)));
+            numericValues.add(value);
+            rendered++;
+        }
+        return new NumericSeries(List.copyOf(dataset), summarize(values.size(), numericValues));
+    }
+
+    /**
+     * Line.
+     *
+     * @param id          id
+     * @param title       title
+     * @param description description
+     * @param dataset     dataset
+     * @param encode      encode
+     * @param meta        meta
+     * @param annotations annotations
+     * @return line result
+     */
+    public static AgenticVisualizationSpec line(
+            String id,
+            String title,
+            String description,
+            List<Map<String, Object>> dataset,
+            AgenticVisualizationSpec.Encode encode,
+            Map<String, Object> meta,
+            List<AgenticVisualizationSpec.Annotation> annotations) {
+        AgenticVisualizationSpec spec = new AgenticVisualizationSpec();
+        spec.setId(id);
+        spec.setType(AgenticConstant.Visualization.Type.LINE);
+        spec.setTitle(title);
+        spec.setDescription(description);
+        spec.setDataset(List.copyOf(Objects.requireNonNullElse(dataset, List.of())));
+        spec.setEncode(Objects.requireNonNullElseGet(
+                encode, () -> AgenticVisualizationSpec.Encode.xy(FIELD_INDEX, FIELD_VALUE)));
+        spec.setScale(mapFromRecord(
+                new Scale(AgenticConstant.Visualization.Scale.LINEAR, AgenticConstant.Visualization.Scale.LINEAR)));
+        spec.setMeta(Map.copyOf(Objects.requireNonNullElse(meta, Map.of())));
+        spec.setAnnotations(List.copyOf(Objects.requireNonNullElse(annotations, List.of())));
+        return spec;
+    }
+
+    /**
+     * Stat.
+     *
+     * @param id          id
+     * @param title       title
+     * @param description description
+     * @param row         row
+     * @param meta        meta
+     * @return stat result
+     */
+    public static AgenticVisualizationSpec stat(
+            String id, String title, String description, Map<String, Object> row, Map<String, Object> meta) {
+        AgenticVisualizationSpec spec = new AgenticVisualizationSpec();
+        spec.setId(id);
+        spec.setType(AgenticConstant.Visualization.Type.STAT);
+        spec.setTitle(title);
+        spec.setDescription(description);
+        spec.setDataset(Objects.isNull(row) || row.isEmpty() ? List.of() : List.of(new LinkedHashMap<>(row)));
+        spec.setEncode(new AgenticVisualizationSpec.Encode());
+        spec.setMeta(Map.copyOf(Objects.requireNonNullElse(meta, Map.of())));
+        return spec;
+    }
+
+    /**
+     * Y annotation.
+     *
+     * @param value value
+     * @param label label
+     * @return y annotation result
+     */
+    public static AgenticVisualizationSpec.Annotation yAnnotation(Double value, String label) {
+        AgenticVisualizationSpec.Annotation annotation = new AgenticVisualizationSpec.Annotation();
+        annotation.setType("y");
+        annotation.setValue(value);
+        annotation.setLabel(label);
+        return annotation;
+    }
+
+    /**
+     * Point history meta.
+     *
+     * @param deviceId    device identifier
+     * @param pointId     point identifier
+     * @param valueSource value source
+     * @return point history meta result
+     */
+    public static Map<String, Object> pointHistoryMeta(Long deviceId, Long pointId, String valueSource) {
+        return mapFromRecord(new PointHistoryMeta(deviceId, pointId, valueSource));
+    }
+
+    /**
+     * Stat row.
+     *
+     * @param summary summary
+     * @return stat row result
+     */
+    public static Map<String, Object> statRow(NumericSummary summary) {
+        if (Objects.isNull(summary) || summary.numericCount() < 1) {
+            return Map.of();
+        }
+        return mapFromRecord(new NumericStat(
+                summary.latest(),
+                summary.average(),
+                summary.min(),
+                summary.max(),
+                summary.delta(),
+                summary.numericCount(),
+                summary.nonNumericCount()));
+    }
+
+    private static Double parseNumericValue(String raw) {
+        if (Objects.isNull(raw)) {
+            return null;
+        }
+        String value = raw.trim();
+        if (value.isEmpty()) {
+            return null;
+        }
+        if ("true".equalsIgnoreCase(value)) {
+            return 1D;
+        }
+        if ("false".equalsIgnoreCase(value)) {
+            return 0D;
+        }
+        try {
+            double parsed = Double.parseDouble(value);
+            if (Double.isFinite(parsed)) {
+                return parsed;
+            }
+            return null;
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private static NumericSummary summarize(int totalCount, List<Double> values) {
+        if (values.isEmpty()) {
+            return NumericSummary.empty(totalCount);
+        }
+        double min = values.getFirst();
+        double max = values.getFirst();
+        double sum = 0D;
+        for (Double value : values) {
+            min = Math.min(min, value);
+            max = Math.max(max, value);
+            sum += value;
+        }
+        double oldest = values.getFirst();
+        double latest = values.getLast();
+        return new NumericSummary(
+                totalCount,
+                values.size(),
+                totalCount - values.size(),
+                oldest,
+                latest,
+                latest - oldest,
+                min,
+                max,
+                sum / values.size());
+    }
+
+    private static Map<String, Object> mapFromRecord(Record source) {
+        Map<String, Object> target = new LinkedHashMap<>();
+        for (RecordComponent component : source.getClass().getRecordComponents()) {
+            target.put(component.getName(), read(source, component));
+        }
+        return target;
+    }
+
+    private static Object read(Record source, RecordComponent component) {
+        try {
+            component.getAccessor().setAccessible(true);
+            return component.getAccessor().invoke(source);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Failed to read visualization field: " + component.getName(), e);
+        }
+    }
+
+    /** numeric series. */
+    public record NumericSeries(List<Map<String, Object>> dataset, NumericSummary summary) {
+
+        /** Numeric series compact constructor: normalizes the record. */
+        public NumericSeries {
+            dataset = List.copyOf(Objects.requireNonNullElse(dataset, List.of()));
+            summary = Objects.requireNonNullElseGet(summary, () -> NumericSummary.empty(0));
+        }
+    }
+
+    /** numeric summary. */
+    public record NumericSummary(
+            int totalCount,
+            int numericCount,
+            int nonNumericCount,
+            Double oldest,
+            Double latest,
+            Double delta,
+            Double min,
+            Double max,
+            Double average) {
+
+        /**
+         * Empty.
+         *
+         * @param totalCount total count
+         * @return empty result
+         */
+        public static NumericSummary empty(int totalCount) {
+            return new NumericSummary(totalCount, 0, Math.max(totalCount, 0), null, null, null, null, null, null);
+        }
+    }
+
+    private record NumericPoint(int index, Double value, String series) {}
+
+    private record Scale(String x, String y) {}
+
+    private record PointHistoryMeta(Long deviceId, Long pointId, String valueSource) {}
+
+    private record NumericStat(
+            Double latest,
+            Double average,
+            Double min,
+            Double max,
+            Double delta,
+            int numericCount,
+            int nonNumericCount) {}
+}

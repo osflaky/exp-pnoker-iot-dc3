@@ -1,0 +1,195 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.data.entity.builder;
+
+import io.github.pnoker.common.data.entity.bo.MessageBO;
+import io.github.pnoker.common.data.entity.model.MessageDO;
+import io.github.pnoker.common.data.entity.vo.MessageVO;
+import io.github.pnoker.common.entity.ext.JsonExt;
+import io.github.pnoker.common.entity.ext.MessageExt;
+import io.github.pnoker.common.enums.AlarmMessageLevelEnum;
+import io.github.pnoker.common.enums.EnableFlagEnum;
+import io.github.pnoker.common.utils.CodeUtil;
+import io.github.pnoker.common.utils.JsonUtil;
+import io.github.pnoker.common.utils.MapStructUtil;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import org.apache.commons.lang3.StringUtils;
+import org.mapstruct.AfterMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
+/**
+ * MapStruct builder converting between alarm message BO, VO, and DO.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Mapper(
+        componentModel = "spring",
+        implementationName = "DataMessageBuilderImpl",
+        uses = {MapStructUtil.class})
+public interface MessageBuilder {
+
+    /**
+     * VO to BO
+     *
+     * @param entityVO EntityVO
+     * @return EntityBO
+     */
+    @Mapping(target = "tenantId", ignore = true)
+    MessageBO buildBOByVO(MessageVO entityVO);
+
+    /**
+     * VOList to BOList
+     *
+     * @param entityVOList EntityVO Array
+     * @return EntityBO Array
+     */
+    List<MessageBO> buildBOListByVOList(List<MessageVO> entityVOList);
+
+    /**
+     * BO to DO
+     *
+     * @param entityBO EntityBO
+     * @return EntityDO
+     */
+    @Mapping(target = "messageExt", ignore = true)
+    @Mapping(target = "messageLevel", ignore = true)
+    @Mapping(target = "enableFlag", ignore = true)
+    @Mapping(target = "deleted", ignore = true)
+    MessageDO buildDOByBO(MessageBO entityBO);
+
+    /**
+     * After process.
+     *
+     * @param entityBO business object
+     * @param entityDO persistence object
+     */
+    @AfterMapping
+    default void afterProcess(MessageBO entityBO, @MappingTarget MessageDO entityDO) {
+        // Code
+        if (StringUtils.isEmpty(entityBO.getMessageCode())) {
+            entityDO.setMessageCode(CodeUtil.getCode());
+        }
+
+        // Json Ext
+        MessageExt entityExt = entityBO.getMessageExt();
+        JsonExt ext = new JsonExt();
+        if (Objects.nonNull(entityExt)) {
+            ext.setType(entityExt.getType());
+            ext.setVersion(entityExt.getVersion());
+            ext.setRemark(entityExt.getRemark());
+            ext.setContent(JsonUtil.toJsonString(entityExt.getContent()));
+        }
+        entityDO.setMessageExt(ext);
+
+        // AlarmMessageLevel Flag
+        AlarmMessageLevelEnum alarmMessageLevel = entityBO.getMessageLevel();
+        Optional.ofNullable(alarmMessageLevel).ifPresent(value -> entityDO.setMessageLevel(value.getIndex()));
+
+        // Enable Flag
+        EnableFlagEnum enableFlag = entityBO.getEnableFlag();
+        Optional.ofNullable(enableFlag).ifPresent(value -> entityDO.setEnableFlag(value.getIndex()));
+    }
+
+    /**
+     * BOList to DOList
+     *
+     * @param entityBOList EntityBO Array
+     * @return EntityDO Array
+     */
+    List<MessageDO> buildDOListByBOList(List<MessageBO> entityBOList);
+
+    /**
+     * DO to BO
+     *
+     * @param entityDO EntityDO
+     * @return EntityBO
+     */
+    @Mapping(target = "messageExt", ignore = true)
+    @Mapping(target = "messageLevel", ignore = true)
+    @Mapping(target = "enableFlag", ignore = true)
+    MessageBO buildBOByDO(MessageDO entityDO);
+
+    /**
+     * After process.
+     *
+     * @param entityDO persistence object
+     * @param entityBO business object
+     */
+    @AfterMapping
+    default void afterProcess(MessageDO entityDO, @MappingTarget MessageBO entityBO) {
+        // Json Ext
+        JsonExt entityExt = entityDO.getMessageExt();
+        if (Objects.nonNull(entityExt)) {
+            MessageExt ext = new MessageExt();
+            ext.setType(entityExt.getType());
+            ext.setVersion(entityExt.getVersion());
+            ext.setRemark(entityExt.getRemark());
+            ext.setContent(JsonUtil.parseObject(entityExt.getContent(), MessageExt.Content.class));
+            entityBO.setMessageExt(ext);
+        }
+
+        // AlarmMessageLevel Flag
+        Byte alarmMessageLevel = entityDO.getMessageLevel();
+        entityBO.setMessageLevel(AlarmMessageLevelEnum.ofIndex(alarmMessageLevel));
+
+        // Enable Flag
+        Byte enableFlag = entityDO.getEnableFlag();
+        entityBO.setEnableFlag(EnableFlagEnum.ofIndex(enableFlag));
+    }
+
+    /**
+     * DOList to BOList
+     *
+     * @param entityDOList EntityDO Array
+     * @return EntityBO Array
+     */
+    List<MessageBO> buildBOListByDOList(List<MessageDO> entityDOList);
+
+    /**
+     * BO to VO
+     *
+     * @param entityBO EntityBO
+     * @return EntityVO
+     */
+    MessageVO buildVOByBO(MessageBO entityBO);
+
+    /**
+     * BOList to VOList
+     *
+     * @param entityBOList EntityBO Array
+     * @return EntityVO Array
+     */
+    List<MessageVO> buildVOListByBOList(List<MessageBO> entityBOList);
+
+    /**
+     * DOPage to BOPage
+     *
+     * @param entityPageDO EntityDO Page
+     * @return EntityBO Page
+     */
+    /**
+     * BOPage to VOPage
+     *
+     * @param entityPageBO EntityBO Page
+     * @return EntityVO Page
+     */
+}

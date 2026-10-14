@@ -1,0 +1,273 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Manager-domain entity types (dc3-common-manager).
+ */
+
+// ─── Device ──────────────────────────────────────────────────────────
+
+/**
+ * Device extension fields.
+ */
+export interface DeviceExt {
+  content?: {
+    keep?: string;
+  };
+}
+
+/**
+ * DeviceForm data contract.
+ */
+export interface DeviceForm {
+  id?: string;
+  deviceName?: string;
+  deviceCode?: string;
+  driverId?: string;
+  profileId?: string;
+  deviceExt?: DeviceExt;
+  enableFlag?: string;
+  signature?: string;
+  version?: number;
+  remark?: string;
+
+  [key: string]: unknown;
+}
+
+/**
+ * Device record.
+ */
+export interface DeviceRecord extends DeviceForm {
+  id: string;
+  version: number;
+  createTime?: string;
+  operateTime?: string;
+}
+
+// ─── Driver ──────────────────────────────────────────────────────────
+
+/**
+ * Driver record.
+ */
+export interface DriverRecord {
+  id: string;
+  version: number;
+  driverName?: string;
+  driverCode?: string;
+  serviceName?: string;
+  serviceHost?: string;
+  driverTypeFlag?: string;
+  enableFlag?: string;
+  remark?: string;
+  createTime?: string;
+  operateTime?: string;
+
+  [key: string]: unknown;
+}
+
+// ─── Profile ─────────────────────────────────────────────────────────
+
+/**
+ * Profile extension fields.
+ */
+export interface ProfileExt {
+  content?: {
+    keep?: string;
+  };
+}
+
+/**
+ * ProfileForm data contract.
+ */
+export interface ProfileForm {
+  id?: string;
+  profileName?: string;
+  profileCode?: string;
+  profileShareFlag?: string;
+  profileTypeFlag?: string;
+  profileExt?: ProfileExt;
+  enableFlag?: string;
+  signature?: string;
+  version?: number;
+  remark?: string;
+
+  [key: string]: unknown;
+}
+
+/**
+ * Profile record.
+ */
+export interface ProfileRecord extends ProfileForm {
+  id: string;
+  version: number;
+  createTime?: string;
+  operateTime?: string;
+}
+
+// ─── Point ───────────────────────────────────────────────────────────
+
+/**
+ * Point extension fields.
+ */
+export interface PointExt {
+  content?: {
+    keep?: string;
+  };
+}
+
+/**
+ * PointForm data contract.
+ */
+export interface PointForm {
+  id?: string;
+  pointName?: string;
+  pointCode?: string;
+  pointTypeFlag?: string;
+  rwFlag?: string;
+  baseValue?: number | string;
+  multiple?: number | string;
+  valueDecimal?: number | string;
+  unit?: string;
+  profileId?: string;
+  pointExt?: PointExt;
+  enableFlag?: string;
+  signature?: string;
+  version?: number;
+  remark?: string;
+
+  [key: string]: unknown;
+}
+
+/**
+ * Point record.
+ */
+export interface PointRecord extends PointForm {
+  id: string;
+  version: number;
+  createTime?: string;
+  operateTime?: string;
+}
+
+// ─── Attribute Config ────────────────────────────────────────────────
+
+/**
+ * DriverInfoForm data contract.
+ */
+export interface DriverInfoForm {
+  id?: string;
+  version?: number;
+  deviceId?: string;
+  attributeId?: string;
+  configValue?: string;
+
+  [key: string]: unknown;
+}
+
+/**
+ * PointInfoForm data contract.
+ */
+export interface PointInfoForm {
+  id?: string;
+  version?: number;
+  deviceId?: string;
+  pointId?: string;
+  attributeId?: string;
+  configValue?: string;
+
+  [key: string]: unknown;
+}
+
+/**
+ * CommandInfoForm data contract.
+ */
+export interface CommandInfoForm {
+  id?: string;
+  version?: number;
+  deviceId?: string;
+  commandId?: string;
+  attributeId?: string;
+  configValue?: string;
+
+  [key: string]: unknown;
+}
+
+/**
+ * EventInfoForm data contract.
+ */
+export interface EventInfoForm {
+  id?: string;
+  version?: number;
+  deviceId?: string;
+  eventId?: string;
+  attributeId?: string;
+  configValue?: string;
+
+  [key: string]: unknown;
+}
+
+// ─── Group / Label ──────────────────────────────────────────────────
+
+/**
+ * GroupForm data contract.
+ */
+export interface GroupForm {
+  id?: string;
+  parentGroupId?: string | null;
+  groupTypeFlag?: string;
+  groupName?: string;
+  groupCode?: string;
+  groupLevel?: number;
+  groupIndex?: number;
+  enableFlag?: string;
+  remark?: string;
+
+  [key: string]: unknown;
+}
+
+/**
+ * Group record.
+ */
+export interface GroupRecord extends GroupForm {
+  id: string;
+  createTime?: string;
+  operateTime?: string;
+  children?: GroupRecord[];
+}
+
+/**
+ * LabelForm data contract.
+ */
+export interface LabelForm {
+  id?: string;
+  labelName?: string;
+  labelCode?: string;
+  labelColor?: string;
+  entityTypeFlag?: string;
+  enableFlag?: string;
+  remark?: string;
+
+  [key: string]: unknown;
+}
+
+/**
+ * Label record.
+ */
+export interface LabelRecord extends LabelForm {
+  id: string;
+  createTime?: string;
+  operateTime?: string;
+}

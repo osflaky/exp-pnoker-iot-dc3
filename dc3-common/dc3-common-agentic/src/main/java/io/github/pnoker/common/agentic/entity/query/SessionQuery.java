@@ -1,0 +1,61 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.agentic.entity.query;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.io.Serial;
+import java.io.Serializable;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+/**
+ * Query parameters for session listing and filtering.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Getter
+@Setter
+@Builder
+@ToString
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(description = "Session query parameters")
+public class SessionQuery implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    @Schema(description = "Zero-based result offset.", minimum = "0", example = "0")
+    private Long offset;
+
+    @Schema(description = "Maximum number of items, between 1 and 200.", minimum = "1", maximum = "200", example = "50")
+    private Integer limit;
+
+    @Schema(description = "Stable sort specification; fields are validated by the server.")
+    private java.util.List<io.github.pnoker.db.core.page.SortSpec> sort;
+
+    @Schema(
+            description =
+                    "Unique identifier of the conversation to filter sessions by; returns only sessions associated with the specified conversation.",
+            example = "conv-20240101-abc123")
+    private String conversationId;
+}

@@ -1,0 +1,99 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.enums;
+
+import java.util.Arrays;
+import java.util.Optional;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+/**
+ * Enumeration of the "require password change on next login" flag values (0/1 toggle).
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Getter
+@AllArgsConstructor
+public enum RequirePasswordChangeFlagEnum {
+
+    /**
+     * Password change is not required
+     */
+    NOT_REQUIRED((byte) 0, "not_required", "Password change is not required"),
+
+    /**
+     * Password change is required on next login
+     */
+    REQUIRED((byte) 1, "required", "Password change is required on next login"),
+    ;
+
+    /**
+     * Index
+     */
+    private final Byte index;
+
+    /**
+     * Code
+     */
+    private final String code;
+
+    /**
+     * Remark
+     */
+    private final String remark;
+
+    /**
+     * Get enum by index
+     *
+     * @param index Index
+     * @return {@link RequirePasswordChangeFlagEnum}
+     */
+    public static RequirePasswordChangeFlagEnum ofIndex(Byte index) {
+        Optional<RequirePasswordChangeFlagEnum> any = Arrays.stream(RequirePasswordChangeFlagEnum.values())
+                .filter(type -> type.getIndex().equals(index))
+                .findFirst();
+        return any.orElse(null);
+    }
+
+    /**
+     * Get enum by code
+     *
+     * @param code Code
+     * @return {@link RequirePasswordChangeFlagEnum}
+     */
+    public static RequirePasswordChangeFlagEnum ofCode(String code) {
+        Optional<RequirePasswordChangeFlagEnum> any = Arrays.stream(RequirePasswordChangeFlagEnum.values())
+                .filter(type -> type.getCode().equals(code))
+                .findFirst();
+        return any.orElse(null);
+    }
+
+    /**
+     * Get enum by name
+     *
+     * @param name Name
+     * @return {@link RequirePasswordChangeFlagEnum}
+     */
+    public static RequirePasswordChangeFlagEnum ofName(String name) {
+        try {
+            return valueOf(name);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+}

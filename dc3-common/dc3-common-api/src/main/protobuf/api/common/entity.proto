@@ -1,0 +1,539 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+syntax = "proto3";
+
+package api.common;
+
+import "api/common/base.proto";
+
+// Config
+option java_package = "io.github.pnoker.api.common";
+option java_outer_classname = "EntityProto";
+option objc_class_prefix = "Common";
+option java_multiple_files = true;
+
+// Driver
+message GrpcDriverDTO {
+  // Base
+  // Common base fields (e.g., ID, creation time, etc.) 
+  GrpcBase base = 1;
+
+  // Driver name
+  string driver_name = 2;
+
+  // Driver code
+  string driver_code = 3;
+
+  // Driver service name
+  string service_name = 4;
+
+  // Service host
+  string service_host = 5;
+
+  // Driver type flag
+  int32 driver_type_flag = 6;
+
+  // Driver extension info
+  string driver_ext = 7;
+
+  // Enable flag
+  int32 enable_flag = 8;
+
+  // Signature
+  string signature = 9;
+
+  // Version
+  int32 version = 10;
+
+  // Tenant ID
+  int64 tenant_id = 11;
+}
+
+// Device
+message GrpcDeviceDTO {
+  // Base
+  // Common base fields (e.g., ID, creation time, etc.) 
+  GrpcBase base = 1;
+
+  // Device name
+  string device_name = 2;
+
+  // Device code  
+  string device_code = 3;
+
+  // Driver ID
+  int64 driver_id = 4;
+
+  // Device extension info
+  string device_ext = 5;
+
+  // Enable flag
+  int32 enable_flag = 6;
+
+  // Signature
+  string signature = 7;
+
+  // Version
+  int32 version = 8;
+
+  // Profile IDs
+  repeated int64 profile_ids = 9;
+
+  // Tenant ID
+  int64 tenant_id = 10;
+}
+
+// Profile
+message GrpcProfileDTO {
+  // Base
+  // Common base fields (e.g., ID, creation time, etc.)
+  GrpcBase base = 1;
+
+  // Profile name
+  string profile_name = 2;
+
+  // Profile code
+  string profile_code = 3;
+
+  // Profile share flag
+  int32 profile_share_flag = 4;
+
+  // Profile type flag
+  int32 profile_type_flag = 5;
+
+  // Profile extension info
+  string profile_ext = 6;
+
+  // Enable flag
+  int32 enable_flag = 7;
+
+  // Signature
+  string signature = 8;
+
+  // Version
+  int32 version = 9;
+
+  // Tenant ID
+  int64 tenant_id = 10;
+}
+
+// Point
+message GrpcPointDTO {
+  // Base
+  // Common base fields (e.g., ID, creation time, etc.) 
+  GrpcBase base = 1;
+
+  // Point name
+  string point_name = 2;
+
+  // Point code
+  string point_code = 3;
+
+  // Point type flag
+  int32 point_type_flag = 4;
+
+  // Read-write flag
+  int32 rw_flag = 5;
+
+  // Base value
+  double base_value = 6;
+
+  // Scale factor
+  double multiple = 7;
+
+  // Data precision
+  int32 value_decimal = 8;
+
+  // Unit
+  string unit = 9;
+
+  // Profile ID
+  int64 profile_id = 10;
+
+  // Point extension info
+  string point_ext = 11;
+
+  // Enable flag
+  int32 enable_flag = 12;
+
+  // Signature
+  string signature = 13;
+
+  // Version
+  int32 version = 14;
+
+  // Tenant ID
+  int64 tenant_id = 15;
+}
+
+// Driver Attribute
+message GrpcDriverAttributeDTO {
+  // Base
+  // Common base fields (e.g., ID, creation time, etc.) 
+  GrpcBase base = 1;
+
+  // Attribute name
+  string attribute_name = 2;
+
+  // Attribute code
+  string attribute_code = 3;
+
+  // Attribute type flag
+  int32 attribute_type_flag = 4;
+
+  // Default value 
+  string default_value = 5;
+
+  // Driver ID
+  int64 driver_id = 6;
+
+  // Driver attribute extension info
+  string attribute_ext = 7;
+
+  // Enable flag
+  int32 enable_flag = 8;
+
+  // Signature
+  string signature = 9;
+
+  // Version
+  int32 version = 10;
+
+  // Tenant ID
+  int64 tenant_id = 11;
+}
+
+// Driver attribute config
+message GrpcDriverAttributeConfigDTO {
+  // Base
+  // Common base fields (e.g., ID, creation time, etc.) 
+  GrpcBase base = 1;
+
+  // Driver attribute ID
+  int64 attribute_id = 2;
+
+  // Driver config value 
+  string config_value = 3;
+
+  // Device ID
+  int64 device_id = 4;
+
+  // Enable flag
+  int32 enable_flag = 5;
+
+  // Signature
+  string signature = 6;
+
+  // Version
+  int32 version = 7;
+
+  // Tenant ID
+  int64 tenant_id = 8;
+}
+
+// Point Attribute
+message GrpcPointAttributeDTO {
+  // Base
+  // Common base fields (e.g., ID, creation time, etc.) 
+  GrpcBase base = 1;
+
+  // Attribute name
+  string attribute_name = 2;
+
+  // Attribute code
+  string attribute_code = 3;
+
+  // Attribute type flag
+  int32 attribute_type_flag = 4;
+
+  // Default value
+  string default_value = 5;
+
+  // Driver ID
+  int64 driver_id = 6;
+
+  // Point attribute extension info
+  string attribute_ext = 7;
+
+  // Enable flag
+  int32 enable_flag = 8;
+
+  // Signature
+  string signature = 9;
+
+  // Version
+  int32 version = 10;
+
+  // Tenant ID
+  int64 tenant_id = 11;
+}
+
+// Command Attribute
+message GrpcCommandAttributeDTO {
+  // Base
+  // Common base fields (e.g., ID, creation time, etc.)
+  GrpcBase base = 1;
+
+  // Attribute name
+  string attribute_name = 2;
+
+  // Attribute code
+  string attribute_code = 3;
+
+  // Attribute type flag
+  int32 attribute_type_flag = 4;
+
+  // Default value
+  string default_value = 5;
+
+  // Driver ID
+  int64 driver_id = 6;
+
+  // Command attribute extension info
+  string attribute_ext = 7;
+
+  // Enable flag
+  int32 enable_flag = 8;
+
+  // Signature
+  string signature = 9;
+
+  // Version
+  int32 version = 10;
+
+  // Tenant ID
+  int64 tenant_id = 11;
+}
+
+// Event Attribute
+message GrpcEventAttributeDTO {
+  // Base
+  // Common base fields (e.g., ID, creation time, etc.)
+  GrpcBase base = 1;
+
+  // Attribute name
+  string attribute_name = 2;
+
+  // Attribute code
+  string attribute_code = 3;
+
+  // Attribute type flag
+  int32 attribute_type_flag = 4;
+
+  // Default value
+  string default_value = 5;
+
+  // Driver ID
+  int64 driver_id = 6;
+
+  // Event attribute extension info
+  string attribute_ext = 7;
+
+  // Enable flag
+  int32 enable_flag = 8;
+
+  // Signature
+  string signature = 9;
+
+  // Version
+  int32 version = 10;
+
+  // Tenant ID
+  int64 tenant_id = 11;
+}
+
+// Command
+message GrpcCommandDTO {
+  GrpcBase base = 1;
+  string command_name = 2;
+  string command_code = 3;
+  int32 command_type_flag = 4;
+  int32 call_type_flag = 5;
+  int32 timeout = 6;
+  string command_ext = 7;
+  int64 profile_id = 8;
+  int32 enable_flag = 9;
+  string signature = 10;
+  int32 version = 11;
+  int64 tenant_id = 12;
+}
+
+// Immutable command projection installed in a driver together with a device.
+// Runtime command execution must not perform a manager lookup per invocation.
+message GrpcCommandRuntimeDTO {
+  string command_id = 1;
+  string command_name = 2;
+  string command_code = 3;
+  int32 command_type_flag = 4;
+  int32 call_type_flag = 5;
+  int32 timeout = 6;
+  string command_ext = 7;
+  int32 enable_flag = 8;
+  int32 version = 9;
+}
+
+// Command Param
+message GrpcCommandParamDTO {
+  GrpcBase base = 1;
+  string param_name = 2;
+  string param_code = 3;
+  int32 param_direction_flag = 4;
+  int32 param_type_flag = 5;
+  int32 required_flag = 6;
+  string default_value = 7;
+  string param_ext = 8;
+  int64 command_id = 9;
+  int32 enable_flag = 10;
+  string signature = 11;
+  int32 version = 12;
+  int64 tenant_id = 13;
+}
+
+// Event
+message GrpcEventDTO {
+  GrpcBase base = 1;
+  string event_name = 2;
+  string event_code = 3;
+  int32 event_type_flag = 4;
+  int32 event_level_flag = 5;
+  string event_ext = 6;
+  int64 profile_id = 7;
+  int32 enable_flag = 8;
+  string signature = 9;
+  int32 version = 10;
+  int64 tenant_id = 11;
+}
+
+// Immutable event projection installed in a driver together with a device.
+// Runtime consumers must not perform a manager lookup for every device message.
+message GrpcEventRuntimeDTO {
+  string event_id = 1;
+  string event_name = 2;
+  string event_code = 3;
+  int32 event_type_flag = 4;
+  int32 event_level_flag = 5;
+  int32 enable_flag = 6;
+  int32 version = 7;
+}
+
+// Event Param
+message GrpcEventParamDTO {
+  GrpcBase base = 1;
+  string param_name = 2;
+  string param_code = 3;
+  int32 param_type_flag = 4;
+  string param_ext = 5;
+  int64 event_id = 6;
+  int32 enable_flag = 7;
+  string signature = 8;
+  int32 version = 9;
+  int64 tenant_id = 10;
+}
+
+// Point attribute config
+message GrpcPointAttributeConfigDTO {
+  // Base
+  // Common base fields (e.g., ID, creation time, etc.) 
+  GrpcBase base = 1;
+
+  // Point attribute ID
+  int64 attribute_id = 2;
+
+  // Point config value
+  string config_value = 3;
+
+  // Device ID
+  int64 device_id = 4;
+
+  // Point ID
+  int64 point_id = 5;
+
+  // Enable flag
+  int32 enable_flag = 6;
+
+  // Signature
+  string signature = 7;
+
+  // Version
+  int32 version = 8;
+
+  // Tenant ID
+  int64 tenant_id = 9;
+}
+
+// Command attribute config
+message GrpcCommandAttributeConfigDTO {
+  // Base
+  // Common base fields (e.g., ID, creation time, etc.)
+  GrpcBase base = 1;
+
+  // Command attribute ID
+  int64 attribute_id = 2;
+
+  // Command config value
+  string config_value = 3;
+
+  // Device ID
+  int64 device_id = 4;
+
+  // Command ID
+  int64 command_id = 5;
+
+  // Enable flag
+  int32 enable_flag = 6;
+
+  // Signature
+  string signature = 7;
+
+  // Version
+  int32 version = 8;
+
+  // Tenant ID
+  int64 tenant_id = 9;
+}
+
+// Event attribute config
+message GrpcEventAttributeConfigDTO {
+  // Base
+  // Common base fields (e.g., ID, creation time, etc.)
+  GrpcBase base = 1;
+
+  // Event attribute ID
+  int64 attribute_id = 2;
+
+  // Event config value
+  string config_value = 3;
+
+  // Device ID
+  int64 device_id = 4;
+
+  // Event ID
+  int64 event_id = 5;
+
+  // Enable flag
+  int32 enable_flag = 6;
+
+  // Signature
+  string signature = 7;
+
+  // Version
+  int32 version = 8;
+
+  // Tenant ID
+  int64 tenant_id = 9;
+}

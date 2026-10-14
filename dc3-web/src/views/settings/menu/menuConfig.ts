@@ -1,0 +1,218 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+import {addMenu, deleteMenu, listMenuTree, updateMenu} from '@/api/menu';
+import {MENU_LEVEL_OPTIONS, MENU_TYPE_OPTIONS} from '@/config/constant/enums';
+import {iconNames} from '@/config/constant/icons';
+import {useMenuStore} from '@/store';
+import type {EntityListConfig, Translator} from '@/config/types/entityList';
+import {authNameRules, remarkRules} from '@/utils/formRuleUtil';
+
+// Menu edits must refresh every surface that renders the tree (top nav,
+// settings sidebar, pickers). The sidebar no longer force-refetches on
+// every settings visit (that cost a duplicate ~1.5s list_tree per entry),
+// so mutations invalidate the pinia cache here instead — reset marks it
+// unloaded and the next consumer refetches.
+const invalidateMenuCache = () => {
+  const menuStore = useMenuStore();
+  menuStore.reset();
+  void menuStore.fetchTree();
+};
+
+/**
+ * Create menu config.
+ * @param t - i18n translator for localized messages
+ * @returns the operation result
+ */
+export const createMenuConfig = (t: Translator): EntityListConfig => ({
+  name: 'menu',
+  title: t('nav.settingsMenu'),
+  mode: 'tree',
+  rowKey: 'id',
+  defaultExpandAll: true,
+  editable: true,
+  searchFields: [
+    {
+      prop: 'menuName',
+      label: t('settings.menu.menuName'),
+      kind: 'input',
+      placeholder: t('settings.menu.menuNamePlaceholder'),
+    },
+    {
+      prop: 'menuCode',
+      label: t('settings.menu.menuCode'),
+      kind: 'input',
+      placeholder: t('settings.menu.menuCodePlaceholder'),
+    },
+    {
+      prop: 'menuTypeFlag',
+      label: t('settings.menu.menuType'),
+      kind: 'select',
+      options: MENU_TYPE_OPTIONS,
+      placeholder: t('common.all'),
+    },
+    {prop: 'enableFlag', label: t('common.enableFlag'), kind: 'enableFlag', includeAll: true},
+  ],
+  columns: [
+    {prop: 'menuName', label: t('settings.menu.menuName'), minWidth: 220, mobile: 'primary'},
+    {prop: 'menuCode', label: t('settings.menu.menuCode'), kind: 'code', minWidth: 180, mobile: 'detail'},
+    {prop: 'menuTypeFlag', label: t('settings.menu.menuType'), minWidth: 100, mobile: 'detail'},
+    {prop: 'menuLevel', label: t('settings.menu.menuLevel'), minWidth: 90, mobile: 'detail'},
+    {prop: 'menuIndex', label: t('settings.menu.menuIndex'), minWidth: 80, mobile: 'hidden'},
+    {prop: 'menuExt.content.url', label: t('settings.menu.menuUrl'), minWidth: 160, mobile: 'detail'},
+    {prop: 'menuExt.content.icon', label: t('settings.menu.menuIcon'), kind: 'icon', width: 90, mobile: 'detail'},
+    {prop: 'enableFlag', label: t('common.enable'), kind: 'enable', width: 90, mobile: 'detail'},
+    {prop: 'createTime', label: t('common.createTime'), kind: 'time', width: 165, mobile: 'hidden'},
+  ],
+  fields: [
+    {
+      prop: 'parentMenuId',
+      label: t('settings.menu.parentMenuId'),
+      kind: 'treeSelect',
+      rules: [{required: true, message: t('settings.menu.parentMenuIdPlaceholder'), trigger: 'change'}],
+      tree: {
+        load: () => listMenuTree().then((res) => res || []),
+        transform: (rows) => [{id: 0, menuName: t('settings.menu.root'), children: rows}],
+        props: {label: 'menuName', children: 'children'},
+        nodeKey: 'id',
+      },
+    },
+    {
+      prop: 'menuName',
+      label: t('settings.menu.menuName'),
+      placeholder: t('settings.menu.menuNamePlaceholder'),
+      maxlength: 32,
+      rules: authNameRules(t, t('common.entityMenu')),
+    },
+    {
+      prop: 'menuCode',
+      label: t('settings.menu.menuCode'),
+      placeholder: t('settings.menu.menuCodePlaceholder'),
+      maxlength: 64,
+      rules: [{required: true, whitespace: true, message: t('settings.menu.menuCodePlaceholder'), trigger: 'blur'}],
+    },
+    {
+      prop: 'titleZh',
+      label: t('settings.menu.titleZh'),
+      placeholder: t('settings.menu.titleZhPlaceholder'),
+      maxlength: 64,
+      rules: [{required: true, whitespace: true, message: t('settings.menu.titleZhPlaceholder'), trigger: 'blur'}],
+    },
+    {
+      prop: 'titleEn',
+      label: t('settings.menu.titleEn'),
+      placeholder: t('settings.menu.titleEnPlaceholder'),
+      maxlength: 64,
+      rules: [{required: true, whitespace: true, message: t('settings.menu.titleEnPlaceholder'), trigger: 'blur'}],
+    },
+    {
+      prop: 'menuTypeFlag',
+      label: t('settings.menu.menuType'),
+      kind: 'select',
+      options: MENU_TYPE_OPTIONS,
+      rules: [{required: true, message: t('settings.menu.menuTypeRequired'), trigger: 'change'}],
+    },
+    {
+      prop: 'menuLevel',
+      label: t('settings.menu.menuLevel'),
+      kind: 'select',
+      options: MENU_LEVEL_OPTIONS,
+      rules: [{required: true, message: t('settings.menu.menuLevelRequired'), trigger: 'change'}],
+    },
+    {prop: 'menuIndex', label: t('settings.menu.menuIndex'), kind: 'number'},
+    {
+      prop: 'icon',
+      label: t('settings.menu.menuIcon'),
+      kind: 'select',
+      placeholder: t('settings.menu.menuIconPlaceholder'),
+      options: iconNames.map((name) => ({label: name, value: name})),
+    },
+    {
+      prop: 'url',
+      label: t('settings.menu.menuUrl'),
+      placeholder: t('settings.menu.menuUrlPlaceholder'),
+      maxlength: 256,
+    },
+    {prop: 'enableFlag', label: t('common.enableFlag'), kind: 'enableFlag'},
+    {
+      prop: 'remark',
+      label: t('common.remark'),
+      kind: 'textarea',
+      span: 24,
+      maxlength: 300,
+      rules: remarkRules(t),
+    },
+  ],
+  defaultForm: () => ({
+    parentMenuId: 0,
+    menuName: '',
+    menuCode: '',
+    menuTypeFlag: 'COMMON',
+    menuLevel: 'C1',
+    menuIndex: 0,
+    titleZh: '',
+    titleEn: '',
+    icon: '',
+    url: '',
+    enableFlag: 'ENABLE',
+    remark: '',
+  }),
+  fromRow: (row) => {
+    const content = row?.menuExt?.content || {};
+    const titles = content.titles || {};
+    const legacyTitle =
+      typeof content.title === 'string' && content.title ? t(content.title, content.title) : row?.menuName || '';
+    return {
+      parentMenuId: row?.parentMenuId ?? 0,
+      menuIndex: row?.menuIndex ?? 0,
+      titleZh: titles.zh || legacyTitle,
+      titleEn: titles.en || legacyTitle,
+      icon: content.icon || '',
+      url: content.url || '',
+    };
+  },
+  toPayload: (form) => {
+    const {icon, url, titleZh, titleEn, ...rest} = form;
+    return {
+      ...rest,
+      menuExt: {
+        content: {
+          titles: {zh: titleZh, en: titleEn},
+          icon: icon || '',
+          url: url || '',
+          remark: rest.remark || '',
+        },
+      },
+    };
+  },
+  list: listMenuTree,
+  add: async (payload) => {
+    await addMenu(payload as Parameters<typeof addMenu>[0]);
+    invalidateMenuCache();
+  },
+  update: async (payload) => {
+    await updateMenu(payload as Parameters<typeof updateMenu>[0]);
+    invalidateMenuCache();
+  },
+  remove: async (id) => {
+    await deleteMenu(id);
+    invalidateMenuCache();
+  },
+  detail: {routeName: 'settingsMenuDetail'},
+  confirmDeleteText: t('common.confirmDelete', {name: t('common.entityMenu')}),
+  emptyText: t('settings.menu.empty'),
+});

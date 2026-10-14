@@ -1,0 +1,77 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+syntax = "proto3";
+
+package api.common.driver;
+
+import "api/common/page.proto";
+import "api/common/entity.proto";
+import "api/common/driver/driver_query.proto";
+
+// Configuration options for code generation
+option java_package = "io.github.pnoker.api.common.driver";
+option java_outer_classname = "DriverDeviceProto";
+option objc_class_prefix = "Driver";
+option java_multiple_files = true;
+
+// Service interface defining RPC calls related to driver devices
+service DeviceApi {
+  // Canonical offset-based query used by reactive driver clients.
+  rpc List (GrpcOffsetDeviceQuery) returns (GrpcOffsetPageDeviceDTO);
+  // Query device by device ID
+  rpc GetById (GrpcDeviceQuery) returns (GrpcDeviceAttachDTO);
+}
+
+message GrpcOffsetDeviceQuery {
+  PageRequest page = 1;
+  int64 tenant_id = 2;
+  int64 driver_id = 3;
+}
+
+message GrpcOffsetPageDeviceDTO {
+  OffsetPage page = 1;
+  repeated GrpcDeviceAttachDTO items = 2;
+}
+
+// Response wrapper for single device query
+// Device attachment structure, including the device and its related configurations
+message GrpcDeviceAttachDTO {
+  // Basic device information
+  GrpcDeviceDTO device = 1;
+
+  // List of point IDs associated with the device
+  repeated int64 point_ids = 2;
+
+  // Driver attribute configuration list
+  repeated GrpcDriverAttributeConfigDTO driver_configs = 3;
+
+  // Point attribute configuration list
+  repeated GrpcPointAttributeConfigDTO point_configs = 4;
+
+  // Command attribute configuration list
+  repeated GrpcCommandAttributeConfigDTO command_configs = 5;
+
+  // Event attribute configuration list
+  repeated GrpcEventAttributeConfigDTO event_configs = 6;
+
+  // Enabled event definitions used by the driver runtime without hot-path RPCs
+  repeated GrpcEventRuntimeDTO events = 7;
+
+  // Enabled command definitions used by the driver runtime without hot-path RPCs
+  repeated GrpcCommandRuntimeDTO commands = 8;
+}

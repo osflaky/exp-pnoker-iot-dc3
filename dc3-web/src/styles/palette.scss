@@ -1,0 +1,39 @@
+/*!
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+// Dashboard family palette — SCSS mirror of DASHBOARD_PALETTE in
+// src/config/constant/palette.ts. Keep the two in lockstep when tuning
+// the brand tones. Scoped components @use this file when they need the
+// tokens in template-level styles.
+
+$dashboard-driver: #9059f6;
+$dashboard-device: #409eff;
+$dashboard-profile: #e6a23c;
+$dashboard-point: #67c23a;
+$dashboard-others: #c0c4cc;
+
+// Neutral / utility palette for dashboard rows.
+$dashboard-row-hover: #fafafa;
+$dashboard-border-light: var(--el-border-color-lighter);
+
+// Reusable: clickable table row cursor — removes the duplicated
+// `:deep(.el-table__row) { cursor: pointer }` block across every list card.
+@mixin clickable-rows {
+  :deep(.el-table__row) {
+    cursor: pointer;
+  }
+}

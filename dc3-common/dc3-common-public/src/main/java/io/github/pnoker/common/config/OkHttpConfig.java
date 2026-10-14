@@ -1,0 +1,62 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.config;
+
+import java.util.concurrent.TimeUnit;
+import okhttp3.ConnectionPool;
+import okhttp3.OkHttpClient;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+
+/**
+ * OkHttp client auto-configuration.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@AutoConfiguration
+@EnableConfigurationProperties(OkHttpProperties.class)
+public class OkHttpConfig {
+
+    /** Create the shared OkHttp auto-configuration. */
+    public OkHttpConfig() {}
+
+    /**
+     * Configure OkHttpClient bean with optimized settings
+     *
+     * @param properties OkHttp client properties
+     * @return Configured OkHttpClient instance
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public OkHttpClient okHttpClient(OkHttpProperties properties) {
+        ConnectionPool pool = new ConnectionPool(
+                properties.getMaxIdleConnections(),
+                properties.getKeepAliveDuration().toMillis(),
+                TimeUnit.MILLISECONDS);
+        return new OkHttpClient.Builder()
+                .retryOnConnectionFailure(properties.isRetryOnConnectionFailure())
+                .connectionPool(pool)
+                .callTimeout(properties.getCallTimeout())
+                .connectTimeout(properties.getConnectTimeout())
+                .readTimeout(properties.getReadTimeout())
+                .writeTimeout(properties.getWriteTimeout())
+                .build();
+    }
+}

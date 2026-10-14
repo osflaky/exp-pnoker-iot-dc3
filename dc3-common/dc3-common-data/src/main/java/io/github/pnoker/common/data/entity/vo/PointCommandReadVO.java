@@ -1,0 +1,70 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.data.entity.vo;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
+import java.io.Serial;
+import java.io.Serializable;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+/**
+ * View object for point command read API responses.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Getter
+@Setter
+@ToString
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(description = "Point Command Read view object")
+public class PointCommandReadVO implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    @Schema(
+            description = "ID of the device to read the point value from.",
+            example = "1024",
+            requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotNull(message = "Device ID can't be empty")
+    private String deviceId;
+
+    @Schema(
+            description = "ID of the data point to read.",
+            example = "2048",
+            requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotNull(message = "Point ID can't be empty")
+    private String pointId;
+
+    /**
+     * Optional pre-generated commandId for idempotent submission.
+     * When provided and already exists, returns the existing command status.
+     * When omitted, the server generates a new UUID.
+     */
+    @Schema(
+            description = "ID of the read command to invoke.",
+            example = "4096",
+            requiredMode = Schema.RequiredMode.REQUIRED)
+    private String commandId;
+}

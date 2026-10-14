@@ -1,0 +1,62 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.mqtt.service.impl;
+
+import io.github.pnoker.common.mqtt.entity.property.MqttProperties;
+import io.github.pnoker.common.mqtt.service.MqttScheduleService;
+import io.github.pnoker.common.mqtt.service.job.MqttScheduleJob;
+import io.github.pnoker.common.quartz.QuartzService;
+import lombok.RequiredArgsConstructor;
+import org.quartz.DateBuilder;
+import org.quartz.SchedulerException;
+import org.springframework.stereotype.Service;
+
+/**
+ * MQTT Schedule Service Implementation
+ * <p>
+ * Implementation of MQTT schedule service for IoT DC3 platform. Manages scheduling of
+ * MQTT message processing tasks using Quartz framework with configurable intervals.
+ * </p>
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Service
+@RequiredArgsConstructor
+public class MqttScheduleServiceImpl implements MqttScheduleService {
+
+    private final MqttProperties mqttProperties;
+
+    private final QuartzService quartzService;
+
+    @Override
+    public void initial() {
+        try {
+            Integer interval = mqttProperties.getBatch().getInterval();
+            quartzService.createJobWithInterval(
+                    "ScheduleGroup",
+                    "MqttScheduleJob",
+                    interval,
+                    DateBuilder.IntervalUnit.SECOND,
+                    MqttScheduleJob.class);
+
+            quartzService.startScheduler();
+        } catch (SchedulerException e) {
+            throw new IllegalStateException("Failed to initialize MQTT batch scheduler", e);
+        }
+    }
+}

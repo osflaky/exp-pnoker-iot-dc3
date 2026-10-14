@@ -1,0 +1,104 @@
+/*!
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+// Shared card shell. ThingsCardHeader and ThingsCardActions own the standard header
+// and footer visuals; specialized cards supply equivalent scoped styles themselves.
+
+@mixin text-ellipsis {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.things-card {
+  // Each card is a direct child of the fluid grid wall (.entity-card-wall
+  // in global.scss); spacing comes from the wall's gap in both axes, and
+  // grid stretch makes every card in a row equal height. Cards carry no
+  // margins, so the last row ends flush at the page bottom padding
+  // (--dc3-page-padding).
+  margin: 0;
+  box-sizing: border-box;
+
+  .things-card-content {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .things-card__body {
+    display: flex;
+    flex-direction: column;
+
+    ul {
+      padding-inline-start: 5px;
+      list-style: none;
+
+      li {
+        font-size: 13px;
+        margin-top: 8px;
+      }
+    }
+
+    .things-card-body-content {
+      display: flex;
+      justify-content: space-around;
+      gap: var(--dc3-space-2);
+      min-width: 0;
+
+      p.nowrap-description {
+        text-align: center;
+      }
+    }
+  }
+
+  .nowrap-name {
+    @include text-ellipsis;
+    width: 100%;
+    max-width: 200px;
+  }
+
+  .nowrap-item {
+    @include text-ellipsis;
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .nowrap-description {
+    @include text-ellipsis;
+    width: 100%;
+    max-width: 350px;
+  }
+
+  .things-body-content-item-column-2 {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 200px;
+  }
+
+  .el-card {
+    width: 100%;
+    min-width: 0;
+    min-height: 230px;
+    box-sizing: border-box;
+  }
+
+  .el-card__body {
+    padding: var(--dc3-space-4);
+  }
+}

@@ -1,0 +1,112 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.data.entity.model;
+
+import io.github.pnoker.common.entity.ext.JsonExt;
+import java.io.Serial;
+import java.io.Serializable;
+import java.time.LocalDateTime;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+
+/**
+ * Persistence object for the dc3_entity_state table.
+ * <p>
+ * Stores the current online-status lease for every driver and device. The expiry
+ * scanner checks {@code expire_time} to detect entities whose heartbeat stopped;
+ * query services read this table as the authoritative source of truth.
+ *
+ * @author pnoker
+ * @since 2026.5.21
+ */
+@Getter
+@Setter
+@ToString
+public class EntityStateDO implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    private Long id;
+
+    /**
+     * Entity type flag (matches EntityTypeEnum: DRIVER=3, DEVICE=6)
+     */
+    private Byte entityTypeFlag;
+
+    /**
+     * Entity ID (driver ID or device ID)
+     */
+    private Long entityId;
+
+    /**
+     * Parent entity ID. For driver entries this is 0; for device entries the owning driver.
+     */
+    private Long parentEntityId;
+
+    /**
+     * Current status index ({@link io.github.pnoker.common.enums.EntityStatusEnum} index)
+     */
+    private Byte stateFlag;
+
+    /**
+     * Last state flag, default OFFLINE (1)
+     */
+    private Byte lastStateFlag;
+
+    /**
+     * Monotonic version incremented on each heartbeat renewal
+     */
+    private Long leaseVersion;
+
+    /**
+     * Absolute time when this lease expires
+     */
+    private LocalDateTime expireTime;
+
+    /**
+     * Timeout in seconds used for this entry
+     */
+    private Integer timeoutSeconds;
+
+    /**
+     * Latest heartbeat time
+     */
+    private LocalDateTime lastHeartbeatTime;
+
+    /**
+     * Latest alarm ID, default 0
+     */
+    private Long lastAlarmId;
+
+    /**
+     * Timeout source (TimeoutSourceTypeEnum), default 0
+     */
+    private Byte timeoutSourceFlag;
+
+    /**
+     * JSON extension payload
+     */
+    private JsonExt stateExt;
+
+    private Long tenantId;
+
+    private LocalDateTime createTime;
+
+    private LocalDateTime operateTime;
+}

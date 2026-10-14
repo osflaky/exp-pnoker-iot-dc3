@@ -1,0 +1,192 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.manager.entity.builder;
+
+import io.github.pnoker.common.entity.ext.JsonExt;
+import io.github.pnoker.common.entity.ext.ProfileExt;
+import io.github.pnoker.common.enums.EnableFlagEnum;
+import io.github.pnoker.common.enums.ProfileShareTypeEnum;
+import io.github.pnoker.common.enums.ProfileTypeEnum;
+import io.github.pnoker.common.manager.entity.bo.ProfileBO;
+import io.github.pnoker.common.manager.entity.model.ProfileDO;
+import io.github.pnoker.common.manager.entity.vo.ProfileVO;
+import io.github.pnoker.common.utils.CodeUtil;
+import io.github.pnoker.common.utils.JsonUtil;
+import io.github.pnoker.common.utils.MapStructUtil;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import org.apache.commons.lang3.StringUtils;
+import org.mapstruct.AfterMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
+/**
+ * MapStruct builder converting between profile BO, VO, and DO.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Mapper(
+        componentModel = "spring",
+        uses = {MapStructUtil.class})
+public interface ProfileBuilder {
+
+    /**
+     * VO to BO
+     *
+     * @param entityVO EntityVO
+     * @return EntityBO
+     */
+    @Mapping(target = "tenantId", ignore = true)
+    ProfileBO buildBOByVO(ProfileVO entityVO);
+
+    /**
+     * VOList to BOList
+     *
+     * @param entityVOList EntityVO Array
+     * @return EntityBO Array
+     */
+    List<ProfileBO> buildBOListByVOList(List<ProfileVO> entityVOList);
+
+    /**
+     * BO to DO
+     *
+     * @param entityBO EntityBO
+     * @return EntityDO
+     */
+    @Mapping(target = "profileExt", ignore = true)
+    @Mapping(target = "profileShareFlag", ignore = true)
+    @Mapping(target = "profileTypeFlag", ignore = true)
+    @Mapping(target = "enableFlag", ignore = true)
+    @Mapping(target = "deleted", ignore = true)
+    ProfileDO buildDOByBO(ProfileBO entityBO);
+
+    /**
+     * After process.
+     *
+     * @param entityBO business object
+     * @param entityDO persistence object
+     */
+    @AfterMapping
+    default void afterProcess(ProfileBO entityBO, @MappingTarget ProfileDO entityDO) {
+        // Code
+        if (StringUtils.isEmpty(entityBO.getProfileCode())) {
+            entityDO.setProfileCode(CodeUtil.getCode());
+        }
+
+        // Json Ext
+        ProfileExt entityExt = entityBO.getProfileExt();
+        JsonExt ext = new JsonExt();
+        if (Objects.nonNull(entityExt)) {
+            ext.setType(entityExt.getType());
+            ext.setVersion(entityExt.getVersion());
+            ext.setRemark(entityExt.getRemark());
+            ext.setContent(JsonUtil.toJsonString(entityExt.getContent()));
+        }
+        entityDO.setProfileExt(ext);
+
+        // ProfileShare Flag
+        ProfileShareTypeEnum profileShareFlag = entityBO.getProfileShareFlag();
+        Optional.ofNullable(profileShareFlag).ifPresent(value -> entityDO.setProfileShareFlag(value.getIndex()));
+
+        // ProfileType Flag
+        ProfileTypeEnum profileTypeFlag = entityBO.getProfileTypeFlag();
+        Optional.ofNullable(profileTypeFlag).ifPresent(value -> entityDO.setProfileTypeFlag(value.getIndex()));
+
+        // Enable Flag
+        EnableFlagEnum enableFlag = entityBO.getEnableFlag();
+        Optional.ofNullable(enableFlag).ifPresent(value -> entityDO.setEnableFlag(value.getIndex()));
+    }
+
+    /**
+     * BOList to DOList
+     *
+     * @param entityBOList EntityBO Array
+     * @return EntityDO Array
+     */
+    List<ProfileDO> buildDOListByBOList(List<ProfileBO> entityBOList);
+
+    /**
+     * DO to BO
+     *
+     * @param entityDO EntityDO
+     * @return EntityBO
+     */
+    @Mapping(target = "profileExt", ignore = true)
+    @Mapping(target = "profileShareFlag", ignore = true)
+    @Mapping(target = "profileTypeFlag", ignore = true)
+    @Mapping(target = "enableFlag", ignore = true)
+    ProfileBO buildBOByDO(ProfileDO entityDO);
+
+    /**
+     * After process.
+     *
+     * @param entityDO persistence object
+     * @param entityBO business object
+     */
+    @AfterMapping
+    default void afterProcess(ProfileDO entityDO, @MappingTarget ProfileBO entityBO) {
+        // Json Ext
+        JsonExt entityExt = entityDO.getProfileExt();
+        if (Objects.nonNull(entityExt)) {
+            ProfileExt ext = new ProfileExt();
+            ext.setType(entityExt.getType());
+            ext.setVersion(entityExt.getVersion());
+            ext.setRemark(entityExt.getRemark());
+            ext.setContent(JsonUtil.parseObject(entityExt.getContent(), ProfileExt.Content.class));
+            entityBO.setProfileExt(ext);
+        }
+
+        // ProfileShare Flag
+        Byte profileShareFlag = entityDO.getProfileShareFlag();
+        entityBO.setProfileShareFlag(ProfileShareTypeEnum.ofIndex(profileShareFlag));
+
+        // ProfileType Flag
+        Byte profileTypeFlag = entityDO.getProfileTypeFlag();
+        entityBO.setProfileTypeFlag(ProfileTypeEnum.ofIndex(profileTypeFlag));
+
+        // Enable Flag
+        Byte enableFlag = entityDO.getEnableFlag();
+        entityBO.setEnableFlag(EnableFlagEnum.ofIndex(enableFlag));
+    }
+
+    /**
+     * DOList to BOList
+     *
+     * @param entityDOList EntityDO Array
+     * @return EntityBO Array
+     */
+    List<ProfileBO> buildBOListByDOList(List<ProfileDO> entityDOList);
+
+    /**
+     * BO to VO
+     *
+     * @param entityBO EntityBO
+     * @return EntityVO
+     */
+    ProfileVO buildVOByBO(ProfileBO entityBO);
+
+    /**
+     * BOList to VOList
+     *
+     * @param entityBOList EntityBO Array
+     * @return EntityVO Array
+     */
+    List<ProfileVO> buildVOListByBOList(List<ProfileBO> entityBOList);
+}

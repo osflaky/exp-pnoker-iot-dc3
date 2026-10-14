@@ -1,0 +1,561 @@
+/*!
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+@use '@/styles/things-dialog.scss';
+@use '@/styles/things-card.scss';
+@use '@/styles/theme.scss';
+@use '@/styles/tokens.scss' as *;
+
+// Imported once by main.ts. These rules cannot live in element-variables.scss because
+// Vite injects additionalData into every scoped style block and appends scope hashes,
+// which do not match body or teleported dropdown, popover, and dialog containers.
+
+// Brand colors and dc3 design tokens live in theme.scss (single source).
+// The 1280px/768px desktop hard floor was removed: the shell must adapt to
+// any viewport width (docs/design/frontend-three-terminal-ux.md, A2).
+body {
+  margin: 0;
+  background: var(--dc3-bg-body);
+  color: var(--dc3-text-primary);
+}
+
+// The authenticated workspace shares one visual grammar: atmospheric canvas,
+// translucent functional surfaces, soft separators, and an explicit focus
+// state. This scopes Element Plus refinements to page content, leaving Login
+// and teleported overlays free to use their own presentation.
+.body-main,
+.settings-main {
+  .el-card {
+    border-color: var(--dc3-border-base);
+    background: var(--dc3-bg-elevated);
+    box-shadow: var(--dc3-shadow-sm);
+    transition:
+      border-color var(--dc3-duration-base) var(--dc3-ease-standard),
+      box-shadow var(--dc3-duration-base) var(--dc3-ease-standard),
+      transform var(--dc3-duration-base) var(--dc3-ease-standard);
+  }
+
+  .el-card.is-hover-shadow:hover {
+    border-color: var(--dc3-border-strong);
+    box-shadow: var(--dc3-shadow-hover);
+  }
+
+  .el-card__header {
+    border-bottom-color: var(--dc3-border-base);
+  }
+
+  .el-input__wrapper,
+  .el-select__wrapper,
+  .el-textarea__inner,
+  .el-segmented {
+    box-shadow: inset 0 0 0 1px var(--dc3-border-base);
+    transition:
+      box-shadow var(--dc3-duration-fast) var(--dc3-ease-standard),
+      background-color var(--dc3-duration-fast) var(--dc3-ease-standard);
+  }
+
+  .el-input__wrapper.is-focus,
+  .el-select__wrapper.is-focused,
+  .el-textarea__inner:focus {
+    box-shadow: inset 0 0 0 1px var(--el-color-primary), var(--dc3-focus-ring);
+  }
+
+  .el-table {
+    --el-table-border-color: var(--dc3-border-base);
+    --el-table-header-bg-color: var(--dc3-bg-muted);
+    --el-table-row-hover-bg-color: var(--dc3-bg-interactive);
+    border-radius: var(--dc3-radius-lg);
+    overflow: hidden;
+  }
+}
+
+// Form width helper classes are real CSS, so they live in the one-time global
+// stylesheet. The Sass variables behind them are still injected everywhere for
+// token reuse.
+.el-select.edit-form-small,
+.el-input.edit-form-small {
+  width: $form-width-small;
+}
+
+.el-select.edit-form-medium {
+  width: $form-width-medium;
+}
+
+.el-select.edit-form-default {
+  width: $form-width-default;
+}
+
+.el-select.edit-form-special,
+.el-input.edit-form-special {
+  width: $form-width-special;
+}
+
+.el-select.edit-form-large {
+  width: $form-width-large;
+}
+
+.settings-table {
+  margin-top: var(--dc3-space-2);
+  border-radius: var(--dc3-radius-lg);
+}
+
+.entity-page-error {
+  margin-bottom: var(--dc3-gutter);
+}
+
+// Entity card walls (device/driver/profile/point/point-value/command/event
+// lists). Cards always FILL their track — one column spans the wall, two
+// halve it, three take a third each — never pinning to a centred max
+// width, so edge margins and gutters stay identical everywhere. Column
+// count derives from the 380px floor via auto-fill: the viewport earns a
+// new column only once every card can still be at least 380px wide (the
+// band where card content stays readable — the old lg/xl 4-up rungs made
+// ~470px look right at 1920, and the min keeps multi-up cards from ever
+// sinking back to the cramped 280px slivers). Columns therefore step
+// continuously (1→2→3→4→…) as the viewport widens instead of snapping
+// rungs. min(380px, 100%) keeps the floor from overflowing phones.
+.entity-card-wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr));
+  gap: var(--dc3-gutter);
+
+  // Status blocks (empty / load-failed) span the whole wall, not one cell.
+  > .el-empty {
+    grid-column: 1 / -1;
+  }
+}
+
+// Element Plus treats any default-slot content as a long-form description:
+// it enlarges the icon/title and stacks the slot below the message. Our
+// load-error alerts use that slot only for a Retry link, so the default
+// presentation wastes vertical space and separates the action from its
+// message. Detect that exact structure and restore a compact action-row
+// contract; the link action keeps the shared control density on every
+// terminal (A3 v7 note).
+// Tone-tinted icon tile shared by the record-card headers (mobile tables
+// rendered as cards) — same design language as ThingsCardHeader / StatCard
+// tiles, so every card family on the platform opens with the same glyph
+// block.
+.entity-icon-tile {
+  --entity-tile-accent: var(--el-color-primary);
+  --entity-tile-accent-soft: var(--el-color-primary-light-9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: 1px solid color-mix(in srgb, var(--entity-tile-accent) 18%, transparent);
+  border-radius: var(--dc3-radius-lg);
+  background: var(--entity-tile-accent-soft);
+  color: var(--entity-tile-accent);
+
+  &.entity-icon-tile--green {
+    --entity-tile-accent: var(--el-color-success);
+    --entity-tile-accent-soft: var(--el-color-success-light-9);
+  }
+
+  &.entity-icon-tile--orange {
+    --entity-tile-accent: var(--el-color-warning);
+    --entity-tile-accent-soft: var(--el-color-warning-light-9);
+  }
+
+  &.entity-icon-tile--purple {
+    --entity-tile-accent: var(--dc3-color-purple);
+    --entity-tile-accent-soft: var(--dc3-color-purple-soft);
+  }
+
+  &.entity-icon-tile--red {
+    --entity-tile-accent: var(--el-color-danger);
+    --entity-tile-accent-soft: var(--el-color-danger-light-9);
+  }
+}
+
+.el-alert:has(> .el-alert__content > .el-alert__description > .el-button.is-link:only-child) {
+  box-sizing: border-box;
+  min-height: var(--dc3-space-10);
+  padding-block: 2px;
+
+  > .el-alert__icon.is-big {
+    width: var(--dc3-space-5);
+    font-size: var(--dc3-space-5);
+    line-height: var(--dc3-space-5);
+  }
+
+  > .el-alert__content {
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    flex-flow: row nowrap;
+    gap: var(--dc3-space-2);
+    min-width: 0;
+    padding: 0;
+  }
+
+  > .el-alert__content > .el-alert__title.with-description {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 14px;
+    line-height: var(--dc3-space-5);
+    overflow-wrap: anywhere;
+  }
+
+  > .el-alert__content > .el-alert__description {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    margin: 0;
+    line-height: 1;
+  }
+}
+
+.json-preview {
+  max-height: 220px;
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  border-radius: var(--dc3-radius-md);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-primary);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+// Popconfirm is teleported to body, so its unscoped layout belongs here. Keep enough
+// width and vertical space for the title and actions, separate adjacent buttons, and
+// emphasize the irreversible primary danger action.
+.el-popover.el-popper.el-popconfirm {
+  --el-popover-padding: var(--dc3-space-3) var(--dc3-space-4);
+
+  .el-popconfirm__main {
+    min-width: 240px;
+    padding: 2px 0 var(--dc3-space-2);
+    line-height: 1.5;
+    align-items: flex-start;
+
+    .el-popconfirm__icon {
+      margin-top: 2px;
+      font-size: 16px;
+    }
+  }
+
+  .el-popconfirm__action {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+
+    .el-button {
+      min-width: 64px;
+      margin: 0;
+    }
+  }
+}
+
+// Element Plus keeps tab headers on one unbreakable row. On touch terminals
+// that row must own its horizontal scroll rather than being clipped by the
+// fixed workspace viewport; this preserves every tab without creating page-
+// level overflow and gives the active tab a predictable swipe target.
+@media (max-width: $breakpoint-sm-max) {
+  .body-main,
+  .settings-main {
+    .el-tabs {
+      min-width: 0;
+    }
+
+    .el-tabs__nav-wrap {
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .el-tabs__nav-wrap::-webkit-scrollbar {
+      display: none;
+    }
+
+    .el-tabs__nav {
+      min-width: max-content;
+    }
+
+    .el-tabs__item {
+      padding-inline: var(--dc3-space-3);
+    }
+  }
+}
+
+.el-dropdown-menu {
+  // Give emoji flags the same em-sized box as el-icon so language, settings,
+  // about, and sign-out items share a baseline at every display density.
+  .lang-flag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
+    margin-right: 8px;
+    font-size: 1em;
+    line-height: 1;
+    vertical-align: -0.15em;
+  }
+
+  .lang-text {
+    margin-right: 16px;
+  }
+
+  .lang-check {
+    margin-left: auto;
+    color: var(--el-color-primary);
+  }
+}
+
+// The account dropdown teleports to body, so its unscoped theme lives here.
+// It mirrors the workspace glass language — elevated translucent surface,
+// soft dc3 border and shadow — so light and dark themes both follow the
+// --dc3 tokens instead of Element defaults. Three class levels so the
+// surface wins the cascade against Element's later-injected .is-light.
+.el-popper.el-dropdown__popper.user-dropdown-popper {
+  overflow: hidden;
+  border: 1px solid var(--dc3-border-base);
+  border-radius: var(--dc3-radius-lg);
+  background: var(--dc3-bg-elevated);
+  box-shadow: var(--dc3-shadow-md);
+  font-family: 'Avenir', Helvetica, Arial, sans-serif;
+  backdrop-filter: blur(18px) saturate(1.32);
+  -webkit-backdrop-filter: blur(18px) saturate(1.32);
+
+  // The glass surface carries its own rounded edge; the default popper
+  // arrow would poke outside it.
+  .el-popper__arrow {
+    display: none;
+  }
+
+  .el-dropdown-menu {
+    min-width: 224px;
+    padding: var(--dc3-space-2);
+    background: transparent;
+  }
+
+  // Identity header: tone-tile avatar + name + tenant line, split from the
+  // actions by a hairline — the same anatomy as the mobile record cards.
+  .user_dropdown_identity {
+    display: flex;
+    align-items: center;
+    gap: var(--dc3-space-3);
+    padding: var(--dc3-space-2) var(--dc3-space-2) var(--dc3-space-3);
+    margin-bottom: var(--dc3-space-1);
+    border-bottom: 1px solid var(--dc3-border-base);
+
+    .user_dropdown_avatar {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      border: 1px solid color-mix(in srgb, var(--el-color-primary) 26%, transparent);
+      border-radius: var(--dc3-radius-full);
+      background:
+        radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.5), transparent 52%),
+        var(--el-color-primary-light-9);
+      color: var(--el-color-primary);
+    }
+
+    .user_dropdown_meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .user_dropdown_name {
+      overflow: hidden;
+      color: var(--dc3-text-primary);
+      font-size: 13px;
+      font-weight: 650;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .user_dropdown_tenant {
+      overflow: hidden;
+      color: var(--dc3-text-muted);
+      font-size: 11px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .el-dropdown-menu__item {
+    gap: var(--dc3-space-2);
+    padding: var(--dc3-space-2) var(--dc3-space-3);
+    border-radius: var(--dc3-radius-md);
+    color: var(--dc3-text-regular);
+    font-size: 13px;
+
+    .el-icon {
+      font-size: 16px;
+    }
+
+    &:not(.is-disabled):hover,
+    &:not(.is-disabled):focus {
+      background: var(--el-color-primary-light-9);
+      color: var(--el-color-primary);
+    }
+  }
+
+  // Element renders `divided` as a standalone separator <li>.
+  .el-dropdown-menu__item--divided {
+    border-top-color: var(--dc3-border-base);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Native scrollbar grooming. The app shell scrolls through Element Plus
+// `el-scrollbar` (overlay-style bars); every other overflow container (card
+// bodies, tables, textareas, asides) still renders the raw browser bar. Give
+// those one slim, quiet, theme-aware look so stray native scrollbars never
+// dominate the layout. `el-scrollbar__wrap--hidden-default` keeps its own
+// hiding rules (higher specificity), so custom bars are unaffected.
+// ---------------------------------------------------------------------------
+* {
+  // Firefox
+  scrollbar-width: thin;
+  scrollbar-color: var(--dc3-border-strong, rgba(144, 147, 153, 0.45)) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: var(--dc3-radius-full);
+  background: var(--dc3-border-strong, rgba(144, 147, 153, 0.45));
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--dc3-text-secondary, rgba(144, 147, 153, 0.7));
+}
+
+// The workspace scroll columns are vertical by design. Gutter rows pull
+// negative margins that can read as a few px of horizontal slack (and
+// fractional zoom rounds card heights past their container) — never let
+// either surface a horizontal scrollbar on the shell itself.
+// The app shell is a vertically scrolling document — horizontal overflow
+// is never meaningful here. Root cause chain: el-row card walls use the
+// Element Plus gutter, whose negative margins (-4px per side) make the row
+// 8px wider than its parent; the right-hand overhang lands in the scroll
+// area's overflow report (scrollWidth = clientWidth + 4). Element Plus's
+// el-scrollbar renders its horizontal bar from that signal alone, so every
+// card-wall page showed a bar that fades in on hover and drags those 4px.
+//
+// The fix must clip at the VIEW level: overflow-x on the wrap (hidden OR
+// clip — Chromium serializes clip back to hidden there) still reports the
+// 4px, but clipping the view drops the overhang from the report entirely
+// so the bar never renders. The overhang itself is empty gutter padding,
+// so clipping it is visually lossless.
+.body-main,
+.settings-main {
+  .el-scrollbar__view {
+    overflow-x: clip;
+  }
+
+  .el-scrollbar__wrap {
+    overflow-x: clip;
+  }
+
+  // Belt and suspenders: even if some future widget reintroduces sub-pixel
+  // overflow, the shell's horizontal bar stays gone.
+  > .el-scrollbar > .el-scrollbar__bar.is-horizontal {
+    display: none;
+  }
+}
+
+// All floating-layer shells get the surface radius from the variable-level
+// mapping in theme.scss (--el-popover-border-radius drives every popper via
+// el-popper.css's inheritance chain). Two things variables alone cannot fix:
+//
+// 1. Collapsed el-menu flyouts (settings tablet rail, NavMenu) paint their
+//    own surface: ul.el-menu--popup carries the .el-menu background +
+//    var(--el-border-radius-small) + box-shadow and exactly fills the
+//    .is-pure popper shell, so rounding the shell alone is invisible.
+//    (0,2,0) beats el-menu.css's .el-menu--popup (0,1,0) regardless of
+//    on-demand injection order.
+.el-popper .el-menu--popup {
+  border-radius: var(--dc3-radius-lg);
+}
+
+// 2. EP components whose radius var is defined on the component selector in
+//    on-demand css — :root cannot beat those, and a plain .el-xxx here would
+//    tie (0,1,0) with styles injected later by route chunks. The body prefix
+//    (0,1,1) wins both, and body is an ancestor of every teleport target.
+body {
+  .el-card {
+    --el-card-border-radius: var(--dc3-radius-lg);
+  }
+
+  .el-popover {
+    --el-popover-border-radius: var(--dc3-radius-lg);
+  }
+
+  .el-dialog {
+    --el-dialog-border-radius: var(--dc3-radius-lg);
+  }
+
+  .el-message-box {
+    --el-messagebox-border-radius: var(--dc3-radius-lg);
+  }
+
+  .el-tag {
+    --el-tag-border-radius: var(--dc3-radius-md);
+    --el-tag-border-radius-rounded: var(--dc3-radius-full);
+  }
+
+  .el-pagination {
+    --el-pagination-border-radius: var(--dc3-radius-md);
+  }
+
+  .el-badge {
+    --el-badge-radius: var(--dc3-radius-full);
+  }
+
+  .el-slider {
+    --el-slider-border-radius: var(--dc3-radius-full);
+  }
+
+  .el-tour {
+    --el-tour-border-radius: var(--dc3-radius-lg);
+  }
+
+  // Source hard-codes 2px with no var to map.
+  .el-time-panel {
+    border-radius: var(--dc3-radius-lg);
+  }
+
+  // Source hard-codes 100px with no var to map.
+  .el-progress-bar__outer,
+  .el-progress-bar__inner {
+    border-radius: var(--dc3-radius-full);
+  }
+}

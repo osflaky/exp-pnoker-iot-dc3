@@ -1,0 +1,504 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Settings nav node.
+ */
+export interface SettingsNavNode {
+  name: string;
+  titleKey: string;
+  icon?: string;
+  children?: SettingsNavNode[];
+}
+
+/**
+ * Settings breadcrumb parent reference.
+ */
+export interface SettingsBreadcrumbParent {
+  path: string;
+  titleKey: string;
+  code: string;
+}
+
+export const SETTINGS_TITLE_KEYS: Record<string, string> = {
+  // group containers
+  settingsIdentity: 'nav.settingsIdentity',
+  settingsAccess: 'nav.settingsAccess',
+  settingsModel: 'nav.settingsModel',
+  settingsAlarm: 'nav.settingsAlarm',
+  settingsEventCommand: 'nav.settingsEventCommand',
+  settingsAudit: 'nav.settingsAudit',
+  settingsIntegration: 'nav.settingsIntegration',
+  settingsSystem: 'nav.settingsSystem',
+  // identity
+  settingsUser: 'nav.settingsUser',
+  settingsPrincipal: 'nav.settingsPrincipal',
+  settingsTenantMembership: 'nav.settingsTenantMembership',
+  settingsLocalCredential: 'nav.settingsLocalCredential',
+  settingsServiceAccount: 'nav.settingsServiceAccount',
+  // access control
+  settingsRole: 'nav.settingsRole',
+  settingsRolePrincipalBind: 'nav.settingsRolePrincipalBind',
+  settingsResource: 'nav.settingsResource',
+  settingsApi: 'nav.settingsApi',
+  settingsMenu: 'nav.settingsMenu',
+  // model
+  settingsModelConfig: 'nav.settingsModelConfig',
+  settingsModelProvider: 'nav.settingsModelProvider',
+  // alarm
+  settingsAlarmRule: 'nav.settingsAlarmRule',
+  settingsAlarmNotify: 'nav.settingsAlarmNotify',
+  settingsAlarmMessage: 'nav.settingsAlarmMessage',
+  settingsAlarmChannel: 'nav.settingsAlarmChannel',
+  settingsAlarmBind: 'nav.settingsAlarmBind',
+  settingsAlarmOverview: 'nav.settingsAlarmOverview',
+  settingsAlarmState: 'nav.settingsAlarmState',
+  settingsAlarmHistory: 'nav.settingsAlarmHistory',
+  settingsDriverAlarm: 'nav.settingsDriverAlarm',
+  settingsDeviceAlarm: 'nav.settingsDeviceAlarm',
+  settingsPointAlarm: 'nav.settingsPointAlarm',
+  // event & command
+  settingsEventHistory: 'nav.settingsEventHistory',
+  settingsCommandHistory: 'nav.settingsCommandHistory',
+  // audit
+  settingsIdentityAudit: 'nav.settingsIdentityAudit',
+  settingsMcpAudit: 'nav.settingsMcpAudit',
+  // integration
+  settingsMcpServer: 'nav.settingsMcpServer',
+  settingsMcpConnection: 'nav.settingsMcpConnection',
+  settingsMcpClient: 'nav.settingsMcpClient',
+  settingsMcpTool: 'nav.settingsMcpTool',
+  // system
+  settingsGroup: 'nav.settingsGroup',
+  settingsLabel: 'nav.settingsLabel',
+  settingsAbout: 'nav.settingsAbout',
+  // detail pages
+  settingsUserDetail: 'nav.settingsUserDetail',
+  settingsRoleDetail: 'nav.settingsRoleDetail',
+  settingsResourceDetail: 'nav.settingsResourceDetail',
+  settingsApiDetail: 'nav.settingsApiDetail',
+  settingsMenuDetail: 'nav.settingsMenuDetail',
+  settingsGroupDetail: 'nav.settingsGroupDetail',
+  settingsLabelDetail: 'nav.settingsLabelDetail',
+  settingsAlarmRuleDetail: 'nav.settingsAlarmRuleDetail',
+  settingsAlarmNotifyDetail: 'nav.settingsAlarmNotifyDetail',
+  settingsAlarmMessageDetail: 'nav.settingsAlarmMessageDetail',
+  settingsAlarmChannelDetail: 'nav.settingsAlarmChannelDetail',
+  settingsAlarmBindDetail: 'nav.settingsAlarmBindDetail',
+  settingsAlarmStateDetail: 'nav.settingsAlarmStateDetail',
+  settingsAlarmHistoryDetail: 'nav.settingsAlarmHistoryDetail',
+  settingsModelConfigDetail: 'nav.settingsModelConfigDetail',
+  settingsModelProviderDetail: 'nav.settingsModelProviderDetail',
+};
+
+export const SETTINGS_FALLBACK_ICON: Record<string, string> = {
+  settings: 'Setting',
+  // group containers
+  settingsIdentity: 'UserFilled',
+  settingsAccess: 'Stamp',
+  settingsModel: 'Cpu',
+  settingsAlarm: 'AlarmClock',
+  settingsEventCommand: 'Operation',
+  settingsAudit: 'Files',
+  settingsIntegration: 'Share',
+  settingsSystem: 'Collection',
+  // identity
+  settingsUser: 'User',
+  settingsPrincipal: 'Avatar',
+  settingsTenantMembership: 'OfficeBuilding',
+  settingsLocalCredential: 'Lock',
+  settingsServiceAccount: 'Key',
+  // access control
+  settingsRole: 'Medal',
+  settingsRolePrincipalBind: 'Paperclip',
+  settingsResource: 'Box',
+  settingsApi: 'Connection',
+  settingsMenu: 'Menu',
+  // model
+  settingsModelConfig: 'MagicStick',
+  settingsModelProvider: 'Shop',
+  // alarm
+  settingsAlarmRule: 'SetUp',
+  settingsAlarmNotify: 'Bell',
+  settingsAlarmMessage: 'Message',
+  settingsAlarmChannel: 'Postcard',
+  settingsAlarmBind: 'Link',
+  settingsAlarmOverview: 'DataAnalysis',
+  settingsAlarmState: 'Monitor',
+  settingsAlarmHistory: 'DocumentChecked',
+  settingsDriverAlarm: 'Promotion',
+  settingsDeviceAlarm: 'Management',
+  settingsPointAlarm: 'TrendCharts',
+  // event & command
+  settingsEventHistory: 'Lightning',
+  settingsCommandHistory: 'Position',
+  // audit
+  settingsIdentityAudit: 'Memo',
+  settingsMcpAudit: 'Document',
+  // integration
+  settingsMcpServer: 'Platform',
+  settingsMcpConnection: 'Link',
+  settingsMcpClient: 'Ticket',
+  settingsMcpTool: 'Tools',
+  // system
+  settingsGroup: 'Grid',
+  settingsLabel: 'CollectionTag',
+  settingsAbout: 'InfoFilled',
+  // detail pages
+  settingsUserDetail: 'User',
+  settingsRoleDetail: 'Medal',
+  settingsResourceDetail: 'Box',
+  settingsApiDetail: 'Connection',
+  settingsMenuDetail: 'Menu',
+  settingsGroupDetail: 'Grid',
+  settingsLabelDetail: 'CollectionTag',
+  settingsAlarmRuleDetail: 'SetUp',
+  settingsAlarmNotifyDetail: 'Bell',
+  settingsAlarmMessageDetail: 'Message',
+  settingsAlarmChannelDetail: 'Postcard',
+  settingsAlarmBindDetail: 'Link',
+  settingsAlarmStateDetail: 'Monitor',
+  settingsAlarmHistoryDetail: 'DocumentChecked',
+  settingsModelConfigDetail: 'MagicStick',
+  settingsModelProviderDetail: 'Shop',
+};
+
+export const SETTINGS_IDENTITY_CHILDREN: SettingsNavNode[] = [
+  {name: 'settingsUser', titleKey: 'nav.settingsUser', icon: 'User'},
+  {name: 'settingsPrincipal', titleKey: 'nav.settingsPrincipal', icon: 'Avatar'},
+  {name: 'settingsTenantMembership', titleKey: 'nav.settingsTenantMembership', icon: 'OfficeBuilding'},
+  {name: 'settingsLocalCredential', titleKey: 'nav.settingsLocalCredential', icon: 'Lock'},
+  {name: 'settingsServiceAccount', titleKey: 'nav.settingsServiceAccount', icon: 'Key'},
+];
+
+export const SETTINGS_ACCESS_CHILDREN: SettingsNavNode[] = [
+  {name: 'settingsRole', titleKey: 'nav.settingsRole', icon: 'Medal'},
+  {name: 'settingsRolePrincipalBind', titleKey: 'nav.settingsRolePrincipalBind', icon: 'Paperclip'},
+  {name: 'settingsResource', titleKey: 'nav.settingsResource', icon: 'Box'},
+  {name: 'settingsApi', titleKey: 'nav.settingsApi', icon: 'Connection'},
+  {name: 'settingsMenu', titleKey: 'nav.settingsMenu', icon: 'Menu'},
+];
+
+export const SETTINGS_MODEL_CHILDREN: SettingsNavNode[] = [
+  {name: 'settingsModelProvider', titleKey: 'nav.settingsModelProvider', icon: 'Shop'},
+  {name: 'settingsModelConfig', titleKey: 'nav.settingsModelConfig', icon: 'MagicStick'},
+];
+
+export const SETTINGS_ALARM_CHILDREN: SettingsNavNode[] = [
+  {name: 'settingsAlarmRule', titleKey: 'nav.settingsAlarmRule', icon: 'SetUp'},
+  {name: 'settingsAlarmNotify', titleKey: 'nav.settingsAlarmNotify', icon: 'Bell'},
+  {name: 'settingsAlarmMessage', titleKey: 'nav.settingsAlarmMessage', icon: 'Message'},
+  {name: 'settingsAlarmChannel', titleKey: 'nav.settingsAlarmChannel', icon: 'Postcard'},
+  {name: 'settingsAlarmBind', titleKey: 'nav.settingsAlarmBind', icon: 'Link'},
+];
+
+export const SETTINGS_EVENT_COMMAND_CHILDREN: SettingsNavNode[] = [
+  {name: 'settingsAlarmOverview', titleKey: 'nav.settingsAlarmOverview', icon: 'DataAnalysis'},
+  {name: 'settingsAlarmState', titleKey: 'nav.settingsAlarmState', icon: 'Monitor'},
+  {name: 'settingsAlarmHistory', titleKey: 'nav.settingsAlarmHistory', icon: 'DocumentChecked'},
+  {name: 'settingsDriverAlarm', titleKey: 'nav.settingsDriverAlarm', icon: 'Promotion'},
+  {name: 'settingsDeviceAlarm', titleKey: 'nav.settingsDeviceAlarm', icon: 'Management'},
+  {name: 'settingsPointAlarm', titleKey: 'nav.settingsPointAlarm', icon: 'TrendCharts'},
+  {name: 'settingsEventHistory', titleKey: 'nav.settingsEventHistory', icon: 'Lightning'},
+  {name: 'settingsCommandHistory', titleKey: 'nav.settingsCommandHistory', icon: 'Position'},
+];
+
+export const SETTINGS_AUDIT_CHILDREN: SettingsNavNode[] = [
+  {name: 'settingsIdentityAudit', titleKey: 'nav.settingsIdentityAudit', icon: 'Memo'},
+  {name: 'settingsMcpAudit', titleKey: 'nav.settingsMcpAudit', icon: 'Document'},
+];
+
+export const SETTINGS_INTEGRATION_CHILDREN: SettingsNavNode[] = [
+  {name: 'settingsMcpServer', titleKey: 'nav.settingsMcpServer', icon: 'Platform'},
+  {name: 'settingsMcpClient', titleKey: 'nav.settingsMcpClient', icon: 'Ticket'},
+  {name: 'settingsMcpConnection', titleKey: 'nav.settingsMcpConnection', icon: 'Link'},
+  {name: 'settingsMcpTool', titleKey: 'nav.settingsMcpTool', icon: 'Tools'},
+];
+
+export const SETTINGS_SYSTEM_CHILDREN: SettingsNavNode[] = [
+  {name: 'settingsGroup', titleKey: 'nav.settingsGroup', icon: 'Grid'},
+  {name: 'settingsLabel', titleKey: 'nav.settingsLabel', icon: 'CollectionTag'},
+];
+
+export const SETTINGS_FALLBACK_SIDEBAR: SettingsNavNode[] = [
+  {name: 'settingsIdentity', titleKey: 'nav.settingsIdentity', icon: 'UserFilled', children: SETTINGS_IDENTITY_CHILDREN},
+  {name: 'settingsAccess', titleKey: 'nav.settingsAccess', icon: 'Stamp', children: SETTINGS_ACCESS_CHILDREN},
+  {name: 'settingsSystem', titleKey: 'nav.settingsSystem', icon: 'Collection', children: SETTINGS_SYSTEM_CHILDREN},
+  {name: 'settingsModel', titleKey: 'nav.settingsModel', icon: 'Cpu', children: SETTINGS_MODEL_CHILDREN},
+  {
+    name: 'settingsIntegration',
+    titleKey: 'nav.settingsIntegration',
+    icon: 'Share',
+    children: SETTINGS_INTEGRATION_CHILDREN,
+  },
+  {name: 'settingsAlarm', titleKey: 'nav.settingsAlarm', icon: 'AlarmClock', children: SETTINGS_ALARM_CHILDREN},
+  {
+    name: 'settingsEventCommand',
+    titleKey: 'nav.settingsEventCommand',
+    icon: 'Operation',
+    children: SETTINGS_EVENT_COMMAND_CHILDREN,
+  },
+  {name: 'settingsAudit', titleKey: 'nav.settingsAudit', icon: 'Files', children: SETTINGS_AUDIT_CHILDREN},
+  {name: 'settingsAbout', titleKey: 'nav.settingsAbout', icon: 'InfoFilled'},
+];
+
+export const SETTINGS_ACTIVE_ALIAS: Record<string, string> = {
+  // group container → its first child (used when a route resolves to a container name)
+  settingsIdentity: 'settingsUser',
+  settingsAccess: 'settingsRole',
+  settingsModel: 'settingsModelProvider',
+  settingsAlarm: 'settingsAlarmRule',
+  settingsEventCommand: 'settingsAlarmOverview',
+  settingsAudit: 'settingsIdentityAudit',
+  settingsIntegration: 'settingsMcpServer',
+  settingsSystem: 'settingsGroup',
+  // legacy route containers kept for redirect compatibility
+  settingsCommand: 'settingsCommandHistory',
+  settingsEvent: 'settingsEventHistory',
+  // detail pages highlight their list sibling
+  settingsModelConfigDetail: 'settingsModelConfig',
+  settingsModelProviderDetail: 'settingsModelProvider',
+  settingsAlarmRuleDetail: 'settingsAlarmRule',
+  settingsAlarmNotifyDetail: 'settingsAlarmNotify',
+  settingsAlarmMessageDetail: 'settingsAlarmMessage',
+  settingsAlarmChannelDetail: 'settingsAlarmChannel',
+  settingsAlarmBindDetail: 'settingsAlarmBind',
+  settingsAlarmStateDetail: 'settingsAlarmState',
+  settingsAlarmHistoryDetail: 'settingsAlarmHistory',
+  settingsUserDetail: 'settingsUser',
+  settingsRoleDetail: 'settingsRole',
+  settingsResourceDetail: 'settingsResource',
+  settingsApiDetail: 'settingsApi',
+  settingsMenuDetail: 'settingsMenu',
+  settingsGroupDetail: 'settingsGroup',
+  settingsLabelDetail: 'settingsLabel',
+};
+
+export const SETTINGS_GROUP_OPENERS: Record<string, string> = {
+  // identity
+  settingsUser: 'settingsIdentity',
+  settingsPrincipal: 'settingsIdentity',
+  settingsTenantMembership: 'settingsIdentity',
+  settingsLocalCredential: 'settingsIdentity',
+  settingsServiceAccount: 'settingsIdentity',
+  // access control
+  settingsRole: 'settingsAccess',
+  settingsRolePrincipalBind: 'settingsAccess',
+  settingsResource: 'settingsAccess',
+  settingsApi: 'settingsAccess',
+  settingsMenu: 'settingsAccess',
+  // model
+  settingsModelConfig: 'settingsModel',
+  settingsModelProvider: 'settingsModel',
+  // alarm configuration
+  settingsAlarmRule: 'settingsAlarm',
+  settingsAlarmNotify: 'settingsAlarm',
+  settingsAlarmMessage: 'settingsAlarm',
+  settingsAlarmChannel: 'settingsAlarm',
+  settingsAlarmBind: 'settingsAlarm',
+  // operations & history
+  settingsAlarmOverview: 'settingsEventCommand',
+  settingsAlarmState: 'settingsEventCommand',
+  settingsAlarmHistory: 'settingsEventCommand',
+  settingsDriverAlarm: 'settingsEventCommand',
+  settingsDeviceAlarm: 'settingsEventCommand',
+  settingsPointAlarm: 'settingsEventCommand',
+  settingsEventHistory: 'settingsEventCommand',
+  settingsCommandHistory: 'settingsEventCommand',
+  // audit
+  settingsIdentityAudit: 'settingsAudit',
+  settingsMcpAudit: 'settingsAudit',
+  // integration
+  settingsMcpServer: 'settingsIntegration',
+  settingsMcpConnection: 'settingsIntegration',
+  settingsMcpClient: 'settingsIntegration',
+  settingsMcpTool: 'settingsIntegration',
+  // system
+  settingsGroup: 'settingsSystem',
+  settingsLabel: 'settingsSystem',
+};
+
+/**
+ * Fetch settings route name.
+ * @param name - resource name
+ * @returns the fetched settings route name
+ */
+export const getSettingsRouteName = (name: string): string => SETTINGS_ACTIVE_ALIAS[name] || name;
+
+/**
+ * Fetch settings active name.
+ * @param name - resource name
+ * @returns the fetched settings active name
+ */
+export const getSettingsActiveName = (name: string): string => SETTINGS_ACTIVE_ALIAS[name] || name;
+
+/**
+ * Fetch settings default openeds.
+ * @param activeName - active name used for the lookup
+ * @returns the fetched settings default openeds
+ */
+export const getSettingsDefaultOpeneds = (activeName: string): string[] => {
+  const opener = SETTINGS_GROUP_OPENERS[activeName];
+  return opener ? [opener] : [];
+};
+
+/**
+ * Fetch settings title key.
+ * @param name - resource name
+ * @returns the fetched settings title key
+ */
+export const getSettingsTitleKey = (name: string): string | undefined => SETTINGS_TITLE_KEYS[name];
+
+const identityParent: SettingsBreadcrumbParent = {
+  path: '/settings/identity',
+  titleKey: 'nav.settingsIdentity',
+  code: 'settingsIdentity',
+};
+
+const accessParent: SettingsBreadcrumbParent = {
+  path: '/settings/access',
+  titleKey: 'nav.settingsAccess',
+  code: 'settingsAccess',
+};
+
+const modelParent: SettingsBreadcrumbParent = {
+  path: '/settings/model',
+  titleKey: 'nav.settingsModel',
+  code: 'settingsModel',
+};
+
+const alarmParent: SettingsBreadcrumbParent = {
+  path: '/settings/alarm',
+  titleKey: 'nav.settingsAlarm',
+  code: 'settingsAlarm',
+};
+
+const eventCommandParent: SettingsBreadcrumbParent = {
+  path: '/settings/event_command',
+  titleKey: 'nav.settingsEventCommand',
+  code: 'settingsEventCommand',
+};
+
+const auditParent: SettingsBreadcrumbParent = {
+  path: '/settings/audit',
+  titleKey: 'nav.settingsAudit',
+  code: 'settingsAudit',
+};
+
+const integrationParent: SettingsBreadcrumbParent = {
+  path: '/settings/integration',
+  titleKey: 'nav.settingsIntegration',
+  code: 'settingsIntegration',
+};
+
+const systemParent: SettingsBreadcrumbParent = {
+  path: '/settings/system',
+  titleKey: 'nav.settingsSystem',
+  code: 'settingsSystem',
+};
+
+export const SETTINGS_BREADCRUMB_PARENTS: Record<string, SettingsBreadcrumbParent[]> = {
+  // identity leaves
+  settingsUser: [identityParent],
+  settingsPrincipal: [identityParent],
+  settingsTenantMembership: [identityParent],
+  settingsLocalCredential: [identityParent],
+  settingsServiceAccount: [identityParent],
+  // access control leaves
+  settingsRole: [accessParent],
+  settingsRolePrincipalBind: [accessParent],
+  settingsResource: [accessParent],
+  settingsApi: [accessParent],
+  settingsMenu: [accessParent],
+  // model leaves
+  settingsModelConfig: [modelParent],
+  settingsModelProvider: [modelParent],
+  // alarm configuration leaves
+  settingsAlarmRule: [alarmParent],
+  settingsAlarmNotify: [alarmParent],
+  settingsAlarmMessage: [alarmParent],
+  settingsAlarmChannel: [alarmParent],
+  settingsAlarmBind: [alarmParent],
+  // operations & history leaves
+  settingsAlarmOverview: [eventCommandParent],
+  settingsAlarmState: [eventCommandParent],
+  settingsAlarmHistory: [eventCommandParent],
+  settingsDriverAlarm: [eventCommandParent],
+  settingsDeviceAlarm: [eventCommandParent],
+  settingsPointAlarm: [eventCommandParent],
+  settingsEventHistory: [eventCommandParent],
+  settingsCommandHistory: [eventCommandParent],
+  // audit leaves
+  settingsIdentityAudit: [auditParent],
+  settingsMcpAudit: [auditParent],
+  // integration leaves
+  settingsMcpServer: [integrationParent],
+  settingsMcpConnection: [integrationParent],
+  settingsMcpClient: [integrationParent],
+  settingsMcpTool: [integrationParent],
+  // system leaves
+  settingsGroup: [systemParent],
+  settingsLabel: [systemParent],
+  settingsAbout: [],
+  // detail pages: group → list → detail
+  settingsUserDetail: [identityParent, {path: '/settings/user', titleKey: 'nav.settingsUser', code: 'settingsUser'}],
+  settingsRoleDetail: [accessParent, {path: '/settings/role', titleKey: 'nav.settingsRole', code: 'settingsRole'}],
+  settingsResourceDetail: [
+    accessParent,
+    {path: '/settings/resource', titleKey: 'nav.settingsResource', code: 'settingsResource'},
+  ],
+  settingsApiDetail: [accessParent, {path: '/settings/api', titleKey: 'nav.settingsApi', code: 'settingsApi'}],
+  settingsMenuDetail: [accessParent, {path: '/settings/menu', titleKey: 'nav.settingsMenu', code: 'settingsMenu'}],
+  settingsGroupDetail: [systemParent, {path: '/settings/group', titleKey: 'nav.settingsGroup', code: 'settingsGroup'}],
+  settingsLabelDetail: [systemParent, {path: '/settings/label', titleKey: 'nav.settingsLabel', code: 'settingsLabel'}],
+  settingsAlarmRuleDetail: [
+    alarmParent,
+    {path: '/settings/alarm/rule', titleKey: 'nav.settingsAlarmRule', code: 'settingsAlarmRule'},
+  ],
+  settingsAlarmNotifyDetail: [
+    alarmParent,
+    {path: '/settings/alarm/notify', titleKey: 'nav.settingsAlarmNotify', code: 'settingsAlarmNotify'},
+  ],
+  settingsAlarmMessageDetail: [
+    alarmParent,
+    {path: '/settings/alarm/message', titleKey: 'nav.settingsAlarmMessage', code: 'settingsAlarmMessage'},
+  ],
+  settingsAlarmChannelDetail: [
+    alarmParent,
+    {path: '/settings/alarm/channel', titleKey: 'nav.settingsAlarmChannel', code: 'settingsAlarmChannel'},
+  ],
+  settingsAlarmBindDetail: [
+    alarmParent,
+    {path: '/settings/alarm/bind', titleKey: 'nav.settingsAlarmBind', code: 'settingsAlarmBind'},
+  ],
+  settingsAlarmStateDetail: [
+    eventCommandParent,
+    {path: '/settings/alarm/state', titleKey: 'nav.settingsAlarmState', code: 'settingsAlarmState'},
+  ],
+  settingsAlarmHistoryDetail: [
+    eventCommandParent,
+    {path: '/settings/alarm/history', titleKey: 'nav.settingsAlarmHistory', code: 'settingsAlarmHistory'},
+  ],
+  settingsModelConfigDetail: [
+    modelParent,
+    {path: '/settings/model/config', titleKey: 'nav.settingsModelConfig', code: 'settingsModelConfig'},
+  ],
+  settingsModelProviderDetail: [
+    modelParent,
+    {path: '/settings/model/provider', titleKey: 'nav.settingsModelProvider', code: 'settingsModelProvider'},
+  ],
+};

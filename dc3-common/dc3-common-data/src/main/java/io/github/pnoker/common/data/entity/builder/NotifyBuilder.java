@@ -1,0 +1,194 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.data.entity.builder;
+
+import io.github.pnoker.common.data.entity.bo.NotifyBO;
+import io.github.pnoker.common.data.entity.model.NotifyDO;
+import io.github.pnoker.common.data.entity.vo.NotifyVO;
+import io.github.pnoker.common.entity.ext.JsonExt;
+import io.github.pnoker.common.entity.ext.NotifyExt;
+import io.github.pnoker.common.enums.AutoConfirmFlagEnum;
+import io.github.pnoker.common.enums.EnableFlagEnum;
+import io.github.pnoker.common.utils.CodeUtil;
+import io.github.pnoker.common.utils.JsonUtil;
+import io.github.pnoker.common.utils.MapStructUtil;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import org.apache.commons.lang3.StringUtils;
+import org.mapstruct.AfterMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
+/**
+ * MapStruct builder converting between alarm notification BO, VO, and DO.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Mapper(
+        componentModel = "spring",
+        uses = {MapStructUtil.class})
+public interface NotifyBuilder {
+
+    /**
+     * VO to BO
+     *
+     * @param entityVO EntityVO
+     * @return EntityBO
+     */
+    @Mapping(target = "tenantId", ignore = true)
+    NotifyBO buildBOByVO(NotifyVO entityVO);
+
+    /**
+     * VOList to BOList
+     *
+     * @param entityVOList EntityVO Array
+     * @return EntityBO Array
+     */
+    List<NotifyBO> buildBOListByVOList(List<NotifyVO> entityVOList);
+
+    /**
+     * BO to DO
+     *
+     * @param entityBO EntityBO
+     * @return EntityDO
+     */
+    @Mapping(target = "notifyExt", ignore = true)
+    @Mapping(target = "autoConfirmFlag", ignore = true)
+    @Mapping(target = "enableFlag", ignore = true)
+    @Mapping(target = "deleted", ignore = true)
+    NotifyDO buildDOByBO(NotifyBO entityBO);
+
+    /**
+     * After process.
+     *
+     * @param entityBO business object
+     * @param entityDO persistence object
+     */
+    @AfterMapping
+    default void afterProcess(NotifyBO entityBO, @MappingTarget NotifyDO entityDO) {
+        // Code
+        if (StringUtils.isEmpty(entityBO.getNotifyCode())) {
+            entityDO.setNotifyCode(CodeUtil.getCode());
+        }
+
+        // Json Ext
+        NotifyExt entityExt = entityBO.getNotifyExt();
+        JsonExt ext = new JsonExt();
+        if (Objects.nonNull(entityExt)) {
+            ext.setType(entityExt.getType());
+            ext.setVersion(entityExt.getVersion());
+            ext.setRemark(entityExt.getRemark());
+            ext.setContent(JsonUtil.toJsonString(entityExt.getContent()));
+        }
+        entityDO.setNotifyExt(ext);
+
+        // AutoConfirm Flag
+        AutoConfirmFlagEnum autoConfirmFlag = entityBO.getAutoConfirmFlag();
+        Optional.ofNullable(autoConfirmFlag).ifPresent(value -> entityDO.setAutoConfirmFlag(value.getIndex()));
+
+        // Enable Flag
+        EnableFlagEnum enableFlag = entityBO.getEnableFlag();
+        Optional.ofNullable(enableFlag).ifPresent(value -> entityDO.setEnableFlag(value.getIndex()));
+    }
+
+    /**
+     * BOList to DOList
+     *
+     * @param entityBOList EntityBO Array
+     * @return EntityDO Array
+     */
+    List<NotifyDO> buildDOListByBOList(List<NotifyBO> entityBOList);
+
+    /**
+     * DO to BO
+     *
+     * @param entityDO EntityDO
+     * @return EntityBO
+     */
+    @Mapping(target = "notifyExt", ignore = true)
+    @Mapping(target = "autoConfirmFlag", ignore = true)
+    @Mapping(target = "enableFlag", ignore = true)
+    NotifyBO buildBOByDO(NotifyDO entityDO);
+
+    /**
+     * After process.
+     *
+     * @param entityDO persistence object
+     * @param entityBO business object
+     */
+    @AfterMapping
+    default void afterProcess(NotifyDO entityDO, @MappingTarget NotifyBO entityBO) {
+        // Json Ext
+        JsonExt entityExt = entityDO.getNotifyExt();
+        if (Objects.nonNull(entityExt)) {
+            NotifyExt ext = new NotifyExt();
+            ext.setType(entityExt.getType());
+            ext.setVersion(entityExt.getVersion());
+            ext.setRemark(entityExt.getRemark());
+            ext.setContent(JsonUtil.parseObject(entityExt.getContent(), NotifyExt.Content.class));
+            entityBO.setNotifyExt(ext);
+        }
+
+        // AutoConfirm Flag
+        Byte autoConfirmFlag = entityDO.getAutoConfirmFlag();
+        entityBO.setAutoConfirmFlag(AutoConfirmFlagEnum.ofIndex(autoConfirmFlag));
+
+        // Enable Flag
+        Byte enableFlag = entityDO.getEnableFlag();
+        entityBO.setEnableFlag(EnableFlagEnum.ofIndex(enableFlag));
+    }
+
+    /**
+     * DOList to BOList
+     *
+     * @param entityDOList EntityDO Array
+     * @return EntityBO Array
+     */
+    List<NotifyBO> buildBOListByDOList(List<NotifyDO> entityDOList);
+
+    /**
+     * BO to VO
+     *
+     * @param entityBO EntityBO
+     * @return EntityVO
+     */
+    NotifyVO buildVOByBO(NotifyBO entityBO);
+
+    /**
+     * BOList to VOList
+     *
+     * @param entityBOList EntityBO Array
+     * @return EntityVO Array
+     */
+    List<NotifyVO> buildVOListByBOList(List<NotifyBO> entityBOList);
+
+    /**
+     * DOPage to BOPage
+     *
+     * @param entityPageDO EntityDO Page
+     * @return EntityBO Page
+     */
+    /**
+     * BOPage to VOPage
+     *
+     * @param entityPageBO EntityBO Page
+     * @return EntityVO Page
+     */
+}

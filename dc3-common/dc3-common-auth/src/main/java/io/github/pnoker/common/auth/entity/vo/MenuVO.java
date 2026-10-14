@@ -1,0 +1,122 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.auth.entity.vo;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import io.github.pnoker.common.entity.base.BaseVO;
+import io.github.pnoker.common.entity.ext.MenuExt;
+import io.github.pnoker.common.enums.EnableFlagEnum;
+import io.github.pnoker.common.enums.MenuLevelEnum;
+import io.github.pnoker.common.enums.MenuTypeFlagEnum;
+import io.github.pnoker.common.valid.Add;
+import io.github.pnoker.common.valid.Auth;
+import io.github.pnoker.common.valid.Update;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+/**
+ * View object for menu API responses.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString(callSuper = true)
+@JsonInclude(JsonInclude.Include.NON_DEFAULT)
+@Schema(description = "Menu view object")
+public class MenuVO extends BaseVO {
+
+    /**
+     * ID
+     */
+    @Schema(
+            description = "ID of the parent menu node in the hierarchy. Null for root-level menus.",
+            example = "1024",
+            requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotNull(
+            message = "Menu parent id can't be empty",
+            groups = {Add.class, Update.class})
+    private String parentMenuId;
+
+    /**
+     * Type
+     */
+    @Schema(description = "Menu type: TITLE (category header) or COMMON (clickable menu item).", example = "COMMON")
+    private MenuTypeFlagEnum menuTypeFlag;
+
+    /**
+     * Name
+     */
+    @NotBlank(
+            message = "Menu name can't be empty",
+            groups = {Add.class, Auth.class})
+    @Schema(
+            description = "Menu display name shown in the navigation sidebar.",
+            example = "Device Management",
+            requiredMode = Schema.RequiredMode.REQUIRED)
+    @Pattern(
+            regexp = "^[A-Za-z0-9][A-Za-z0-9-_#@/.|]{1,31}$",
+            message = "Invalid menu name",
+            groups = {Add.class, Update.class})
+    private String menuName;
+
+    /**
+     * Code, URLMD5
+     */
+    @Schema(
+            description = "Menu code. Stable business identifier used for permission and routing.",
+            example = "device_mgmt")
+    private String menuCode;
+
+    /**
+     *
+     */
+    @Schema(
+            description = "Menu hierarchy level: ROOT, C1 (first level), C2 (second), C3 (third), or C4 (fourth).",
+            example = "C1")
+    private MenuLevelEnum menuLevel;
+
+    /**
+     *
+     */
+    @Schema(description = "Display ordering index among sibling menus (0-based).", example = "0")
+    private Integer menuIndex;
+
+    /**
+     *
+     */
+    @Schema(
+            description =
+                    "Menu extension metadata object containing UI-specific settings such as icon, route URL, and additional permissions.")
+    private MenuExt menuExt;
+
+    /**
+     * Enable flag
+     */
+    @Schema(description = "Enable flag: ENABLE (0) or DISABLE (1).", example = "ENABLE")
+    private EnableFlagEnum enableFlag;
+}

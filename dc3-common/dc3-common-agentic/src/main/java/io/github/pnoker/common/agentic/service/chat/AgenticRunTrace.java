@@ -1,0 +1,158 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.agentic.service.chat;
+
+import io.github.pnoker.common.agentic.entity.model.AgenticRunEvent;
+import io.github.pnoker.common.agentic.entity.model.AgenticVisualizationSpec;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
+/**
+ * Tracks runtime events produced during one agentic turn.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+public class AgenticRunTrace {
+
+    private final Queue<AgenticRunEvent> pendingEvents = new ConcurrentLinkedQueue<>();
+
+    private final Queue<AgenticVisualizationSpec> pendingVisualizations = new ConcurrentLinkedQueue<>();
+
+    private final List<AgenticRunEvent> recordedEvents = Collections.synchronizedList(new ArrayList<>());
+
+    private final List<AgenticVisualizationSpec> recordedVisualizations =
+            Collections.synchronizedList(new ArrayList<>());
+
+    /**
+     * Pending events.
+     *
+     * @return pending events result
+     */
+    public Queue<AgenticRunEvent> pendingEvents() {
+        return pendingEvents;
+    }
+
+    /**
+     * Pending visualizations.
+     *
+     * @return pending visualizations result
+     */
+    public Queue<AgenticVisualizationSpec> pendingVisualizations() {
+        return pendingVisualizations;
+    }
+
+    /**
+     * Record pending event.
+     *
+     * @param event event
+     */
+    public void recordPendingEvent(AgenticRunEvent event) {
+        if (Objects.nonNull(event)) {
+            pendingEvents.add(event);
+        }
+    }
+
+    /**
+     * Drain pending events.
+     *
+     * @return drain pending events result
+     */
+    public List<AgenticRunEvent> drainPendingEvents() {
+        List<AgenticRunEvent> drained = new ArrayList<>();
+        AgenticRunEvent event = pendingEvents.poll();
+        while (Objects.nonNull(event)) {
+            drained.add(event);
+            recordedEvents.add(event);
+            event = pendingEvents.poll();
+        }
+        return drained;
+    }
+
+    /**
+     * Record pending visualization.
+     *
+     * @param visualization visualization
+     */
+    public void recordPendingVisualization(AgenticVisualizationSpec visualization) {
+        if (Objects.nonNull(visualization)) {
+            pendingVisualizations.add(visualization);
+        }
+    }
+
+    /**
+     * Drain pending visualizations.
+     *
+     * @return drain pending visualizations result
+     */
+    public List<AgenticVisualizationSpec> drainPendingVisualizations() {
+        List<AgenticVisualizationSpec> drained = new ArrayList<>();
+        AgenticVisualizationSpec visualization = pendingVisualizations.poll();
+        while (Objects.nonNull(visualization)) {
+            drained.add(visualization);
+            recordedVisualizations.add(visualization);
+            visualization = pendingVisualizations.poll();
+        }
+        return drained;
+    }
+
+    /**
+     * Recorded events.
+     *
+     * @return recorded events result
+     */
+    public List<AgenticRunEvent> recordedEvents() {
+        synchronized (recordedEvents) {
+            return List.copyOf(recordedEvents);
+        }
+    }
+
+    /**
+     * Recorded visualizations.
+     *
+     * @return recorded visualizations result
+     */
+    public List<AgenticVisualizationSpec> recordedVisualizations() {
+        synchronized (recordedVisualizations) {
+            return List.copyOf(recordedVisualizations);
+        }
+    }
+
+    /**
+     * Drain and recorded events.
+     *
+     * @return drain and recorded events result
+     */
+    public List<AgenticRunEvent> drainAndRecordedEvents() {
+        drainPendingEvents();
+        return recordedEvents();
+    }
+
+    /**
+     * Drain and recorded visualizations.
+     *
+     * @return drain and recorded visualizations result
+     */
+    public List<AgenticVisualizationSpec> drainAndRecordedVisualizations() {
+        drainPendingVisualizations();
+        return recordedVisualizations();
+    }
+}

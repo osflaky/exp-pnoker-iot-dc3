@@ -1,0 +1,59 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+syntax = "proto3";
+
+package api.common.manager;
+
+import "api/common/entity.proto";
+import "api/common/manager/manager_query.proto";
+import "api/common/page.proto";
+
+option java_package = "io.github.pnoker.api.center.manager";
+option java_outer_classname = "ManagerEventProto";
+option objc_class_prefix = "Manager";
+option java_multiple_files = true;
+
+// Service interface defining RPC calls related to event management
+service EventApi {
+  // Canonical offset-based query.
+  rpc List (GrpcOffsetEventQuery) returns (GrpcOffsetPageEventDTO);
+  rpc GetById (GrpcEventQuery) returns (GrpcEventDTO);
+  rpc ListByIds (GrpcEventIdsQuery) returns (GrpcEventListDTO);
+}
+
+message GrpcOffsetEventQuery {
+  PageRequest page = 1;
+  int64 tenant_id = 2;
+  string event_name = 3;
+  string event_code = 4;
+  optional int32 event_type_flag = 5;
+  optional int32 event_level_flag = 6;
+  optional int64 profile_id = 7;
+  optional int32 enable_flag = 8;
+  optional int32 version = 9;
+  optional int64 device_id = 10;
+}
+
+message GrpcOffsetPageEventDTO {
+  OffsetPage page = 1;
+  repeated GrpcEventDTO items = 2;
+}
+
+message GrpcEventListDTO {
+  repeated GrpcEventDTO items = 1;
+}

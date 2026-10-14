@@ -1,0 +1,256 @@
+/*!
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+@use '@/styles/tokens.scss' as *;
+
+// Vertically centre things-dialog + cap its height so tall forms scroll
+// inside the dialog rather than bleed past the viewport bottom.
+.el-overlay-dialog:has(.things-dialog) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.things-dialog {
+  &.el-dialog {
+    width: 640px;
+    max-width: calc(100% - 40px);
+    max-height: calc(100vh - 80px);
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .el-dialog__body {
+    flex: 1 1 auto;
+    padding: var(--dc3-space-6) var(--dc3-space-6) var(--dc3-space-4) var(--dc3-space-6);
+    overflow-y: auto;
+
+    pre {
+      margin: auto;
+    }
+  }
+
+  // Opt-in helper: put `class="things-dialog things-dialog--wide"` on a
+  // dialog whose form has many fields, then give the <el-form> the class
+  // `things-form-grid` — every direct el-form-item becomes a half-width
+  // cell, with `.things-form-grid__span-2` for full-width rows.
+  &.things-dialog--wide {
+    &.el-dialog {
+      width: 880px;
+    }
+  }
+
+  .things-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
+
+    .el-form-item {
+      margin-bottom: var(--dc3-space-4);
+    }
+
+    .things-form-grid__span-2 {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .things-dialog-form-item {
+    display: flex;
+
+    .el-form-item__label {
+      width: 100px;
+      height: 32px;
+      display: block;
+      text-align: justify;
+    }
+
+    .el-form-item__label::after {
+      display: inline-block;
+      width: 100%;
+      content: '';
+    }
+  }
+
+  .things-dialog-upload {
+    margin-top: 20px;
+
+    .el-upload__icon {
+      font-size: 71px;
+      color: var(--el-text-color-placeholder);
+      margin-bottom: 16px;
+      line-height: 35px;
+    }
+
+    .el-upload__text {
+      color: var(--el-text-color-regular);
+      font-size: 14px;
+      text-align: center;
+    }
+  }
+
+  .things-dialog-form-alert {
+    margin-bottom: var(--dc3-space-2);
+  }
+
+  .param-editor {
+    margin-top: var(--dc3-space-3);
+  }
+
+  .param-editor__toolbar {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: var(--dc3-space-2);
+  }
+
+  .param-editor__rows {
+    display: grid;
+    gap: var(--dc3-space-3);
+    min-width: 0;
+  }
+
+  .param-editor__row {
+    min-width: 0;
+    padding: var(--dc3-space-3);
+    border: 1px solid var(--dc3-border-base);
+    border-radius: var(--dc3-radius-md);
+    background: var(--dc3-bg-elevated);
+  }
+
+  .param-editor__row-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--dc3-space-3);
+    min-height: var(--dc3-touch-target);
+    margin-bottom: var(--dc3-space-3);
+  }
+
+  .param-editor__row-title {
+    min-width: 0;
+    color: var(--dc3-text-primary);
+  }
+
+  .param-editor__fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--dc3-space-3);
+    min-width: 0;
+  }
+
+  .param-editor__field {
+    display: grid;
+    gap: var(--dc3-space-1);
+    min-width: 0;
+  }
+
+  .param-editor__field--toggle {
+    align-content: start;
+    justify-items: start;
+  }
+
+  .param-editor__label {
+    color: var(--dc3-text-regular);
+    font-size: var(--el-font-size-small);
+    line-height: var(--el-line-height-primary);
+  }
+
+  .param-editor__row .el-input,
+  .param-editor__row .el-select {
+    width: 100%;
+  }
+
+  .things-dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+
+  .el-dialog__title {
+    font-size: 16px;
+    font-weight: bold;
+  }
+
+  .el-form-item__content {
+    width: 100%;
+
+    .el-select {
+      width: 100%;
+    }
+
+    .el-input-number {
+      width: 100%;
+    }
+
+    .el-segmented {
+      width: 100%;
+    }
+
+    .el-textarea__inner {
+      height: 100px;
+    }
+  }
+}
+
+@media (max-width: $breakpoint-xs-max) {
+  .things-dialog {
+    &.el-dialog {
+      width: calc(100% - 16px);
+      max-width: calc(100% - 16px);
+      max-height: calc(100dvh - 16px);
+    }
+
+    .el-dialog__body {
+      padding: var(--dc3-space-4) var(--dc3-space-3) var(--dc3-space-3);
+    }
+
+    .things-form-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .things-dialog-form-item {
+      .el-form-item__label {
+        width: auto;
+        height: auto;
+        text-align: left;
+      }
+
+      .el-form-item__label::after {
+        display: none;
+      }
+    }
+
+    .param-editor__fields {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .param-editor__row {
+      padding: var(--dc3-space-3);
+    }
+
+    .things-dialog-footer {
+      flex-wrap: wrap;
+      gap: var(--dc3-space-2);
+
+      .el-button {
+        flex: 1 1 100%;
+        margin: 0;
+      }
+    }
+  }
+}

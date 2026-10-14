@@ -1,0 +1,189 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.auth.entity.builder;
+
+import io.github.pnoker.common.auth.entity.bo.UserBO;
+import io.github.pnoker.common.auth.entity.model.UserDO;
+import io.github.pnoker.common.auth.entity.vo.UserVO;
+import io.github.pnoker.common.entity.ext.JsonExt;
+import io.github.pnoker.common.entity.ext.UserIdentityExt;
+import io.github.pnoker.common.entity.ext.UserSocialExt;
+import io.github.pnoker.common.enums.EnableFlagEnum;
+import io.github.pnoker.common.utils.JsonUtil;
+import io.github.pnoker.common.utils.MapStructUtil;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import org.mapstruct.AfterMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
+/**
+ * MapStruct builder converting between user BO, VO, and DO.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Mapper(
+        componentModel = "spring",
+        uses = {MapStructUtil.class})
+public interface UserBuilder {
+
+    /**
+     * VO to BO
+     *
+     * @param entityVO EntityVO
+     * @return EntityBO
+     */
+    UserBO buildBOByVO(UserVO entityVO);
+
+    /**
+     * VOList to BOList
+     *
+     * @param entityVOList EntityVO Array
+     * @return EntityBO Array
+     */
+    List<UserBO> buildBOListByVOList(List<UserVO> entityVOList);
+
+    /**
+     * BO to DO
+     *
+     * @param entityBO EntityBO
+     * @return EntityDO
+     */
+    @Mapping(target = "socialExt", ignore = true)
+    @Mapping(target = "identityExt", ignore = true)
+    @Mapping(target = "enableFlag", ignore = true)
+    @Mapping(target = "deleted", ignore = true)
+    UserDO buildDOByBO(UserBO entityBO);
+
+    /**
+     * After process.
+     *
+     * @param entityBO business object
+     * @param entityDO persistence object
+     */
+    @AfterMapping
+    default void afterProcess(UserBO entityBO, @MappingTarget UserDO entityDO) {
+
+        // Json Ext
+        UserSocialExt entitySocialExt = entityBO.getSocialExt();
+        JsonExt socialExt = new JsonExt();
+        if (Objects.nonNull(entitySocialExt)) {
+            socialExt.setType(entitySocialExt.getType());
+            socialExt.setVersion(entitySocialExt.getVersion());
+            socialExt.setVersion(entitySocialExt.getVersion());
+            socialExt.setRemark(entitySocialExt.getRemark());
+            socialExt.setContent(JsonUtil.toJsonString(entitySocialExt.getContent()));
+        }
+        entityDO.setSocialExt(socialExt);
+
+        UserIdentityExt entityIdentityExt = entityBO.getIdentityExt();
+        JsonExt identityExt = new JsonExt();
+        if (Objects.nonNull(entityIdentityExt)) {
+            identityExt.setType(entityIdentityExt.getType());
+            identityExt.setVersion(entityIdentityExt.getVersion());
+            identityExt.setVersion(entityIdentityExt.getVersion());
+            identityExt.setRemark(entityIdentityExt.getRemark());
+            identityExt.setContent(JsonUtil.toJsonString(entityIdentityExt.getContent()));
+        }
+        entityDO.setIdentityExt(identityExt);
+
+        // Enable Flag
+        EnableFlagEnum enableFlag = entityBO.getEnableFlag();
+        Optional.ofNullable(enableFlag).ifPresent(value -> entityDO.setEnableFlag(value.getIndex()));
+    }
+
+    /**
+     * BOList to DOList
+     *
+     * @param entityBOList EntityBO Array
+     * @return EntityDO Array
+     */
+    List<UserDO> buildDOListByBOList(List<UserBO> entityBOList);
+
+    /**
+     * DO to BO
+     *
+     * @param entityDO EntityDO
+     * @return EntityBO
+     */
+    @Mapping(target = "socialExt", ignore = true)
+    @Mapping(target = "identityExt", ignore = true)
+    @Mapping(target = "enableFlag", ignore = true)
+    UserBO buildBOByDO(UserDO entityDO);
+
+    /**
+     * After process.
+     *
+     * @param entityDO persistence object
+     * @param entityBO business object
+     */
+    @AfterMapping
+    default void afterProcess(UserDO entityDO, @MappingTarget UserBO entityBO) {
+        JsonExt entitySocialExt = entityDO.getSocialExt();
+        if (Objects.nonNull(entitySocialExt)) {
+            UserSocialExt ext = new UserSocialExt();
+            ext.setType(entitySocialExt.getType());
+            ext.setVersion(entitySocialExt.getVersion());
+            ext.setVersion(entitySocialExt.getVersion());
+            ext.setRemark(entitySocialExt.getRemark());
+            ext.setContent(JsonUtil.parseObject(entitySocialExt.getContent(), UserSocialExt.Content.class));
+            entityBO.setSocialExt(ext);
+        }
+
+        JsonExt entityIdentityExt = entityDO.getIdentityExt();
+        if (Objects.nonNull(entityIdentityExt)) {
+            UserIdentityExt ext = new UserIdentityExt();
+            ext.setType(entityIdentityExt.getType());
+            ext.setVersion(entityIdentityExt.getVersion());
+            ext.setVersion(entityIdentityExt.getVersion());
+            ext.setRemark(entityIdentityExt.getRemark());
+            ext.setContent(JsonUtil.parseObject(entityIdentityExt.getContent(), UserIdentityExt.Content.class));
+            entityBO.setIdentityExt(ext);
+        }
+
+        // Enable Flag
+        Byte enableFlag = entityDO.getEnableFlag();
+        entityBO.setEnableFlag(EnableFlagEnum.ofIndex(enableFlag));
+    }
+
+    /**
+     * DOList to BOList
+     *
+     * @param entityDOList EntityDO Array
+     * @return EntityBO Array
+     */
+    List<UserBO> buildBOListByDOList(List<UserDO> entityDOList);
+
+    /**
+     * BO to VO
+     *
+     * @param entityBO EntityBO
+     * @return EntityVO
+     */
+    UserVO buildVOByBO(UserBO entityBO);
+
+    /**
+     * BOList to VOList
+     *
+     * @param entityBOList EntityBO Array
+     * @return EntityVO Array
+     */
+    List<UserVO> buildVOListByBOList(List<UserBO> entityBOList);
+}

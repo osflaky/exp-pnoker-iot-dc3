@@ -1,0 +1,102 @@
+#
+# Copyright 2016-present the IoT DC3 original author or authors.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
+# Global default web configuration.
+# These properties can be overridden in environment-specific files:
+# application-dev.yml, application-test.yml, application-pre.yml, application-pro.yml.
+# Property values in environment-specific files take precedence over these defaults.
+spring:
+  transaction:
+    # Enable rollback if a failure occurs during transaction commit.
+    rollback-on-commit-failure: true
+  web:
+    resources:
+      # Disable Spring Boot's default static resource mappings.
+      # Resource handling should be customized by the application if required.
+      add-mappings: false
+  jackson:
+    deserialization:
+      # Do not fail when encountering unknown properties during JSON deserialization.
+      fail-on-unknown-properties: false
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        # Expose health, Prometheus, and additional observability endpoints.
+        include: health,prometheus,info,metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+  # OpenTelemetry Tracing Configuration (Production-grade)
+  tracing:
+    enabled: ${OTEL_TRACING_ENABLED:true}
+    sampling:
+      probability: ${OTEL_TRACING_SAMPLING_PROBABILITY:1.0} # 1.0 for development, reduce to 0.1-0.3 in production
+    propagation:
+      type: B3,W3C # B3 for legacy systems, W3C for standard trace context
+    baggage:
+      enabled: true
+    export:
+      otlp:
+        enabled: ${OTEL_OTLP_EXPORTER_ENABLED:true} # Enable OTLP exporter by default
+  # OTLP tracing export endpoint (Spring Boot: management.otlp.tracing.*, NOT management.tracing.otlp.*)
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://dc3-jaeger:4318/v1/traces}
+      timeout: ${OTEL_EXPORTER_OTLP_TIMEOUT:10s}
+      compression: gzip
+
+# OpenAPI / Swagger UI baseline, shared by every web service (auth, manager,
+# data, agentic, single) through the auto-activated "web" profile. Document
+# content (groups, scanned packages) is defined per business module by
+# GroupedOpenApi beans; the global info/contact/license/security scheme lives in
+# SpringDocConfig. The webflux base-path of each service (/auth, /manager, ...)
+# prefixes these paths, e.g. auth docs are served at /auth/swagger-ui.html.
+# Production disables these endpoints in each service's application-pro.yml.
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    # Explicit true keeps behavior identical but silences SpringDoc's
+    # "enabled by default" boot reminder (it only fires on unset properties).
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    # Stable, reviewable ordering of operations and tags.
+    operations-sorter: alpha
+    tags-sorter: alpha
+    display-request-duration: true
+  # Flatten query/path parameter objects (e.g. *Query DTOs) into discrete params.
+  default-flat-param-object: true
+
+dc3:
+  docs:
+    public-enabled: true
+    internal-signature-enabled: false

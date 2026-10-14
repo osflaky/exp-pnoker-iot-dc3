@@ -1,0 +1,61 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.data.entity.vo.dashboard;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.io.Serial;
+import java.io.Serializable;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+/**
+ * A device whose alarm rate deviates sharply from its profile peers. The ratio field is
+ * alarmCount / peerMedian; service filters to ratio &gt;= 3.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Getter
+@Setter
+@ToString
+@NoArgsConstructor
+@Schema(description = "A device whose alarm rate deviates sharply from its profile peers")
+public class PeerDeviationVO implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    @Schema(description = "profile ID the device belongs to", example = "1024")
+    private String profileId;
+
+    @Schema(description = "device ID")
+    private String deviceId;
+
+    @Schema(description = "alarm count for this device", example = "15")
+    private long alarmCount;
+
+    @Schema(description = "median alarm count across the profile peers", example = "3")
+    private long peerMedian;
+
+    /**
+     * alarmCount / peerMedian, 2-decimal. 0 means peerMedian was 0 (fresh profile).
+     */
+    @Schema(description = "alarmCount divided by peerMedian; 0 means peerMedian was 0", example = "5.00")
+    private double ratio;
+}

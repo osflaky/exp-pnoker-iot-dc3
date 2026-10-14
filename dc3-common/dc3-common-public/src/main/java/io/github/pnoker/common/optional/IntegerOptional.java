@@ -1,0 +1,71 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.optional;
+
+import io.github.pnoker.common.constant.common.DefaultConstant;
+import java.util.Objects;
+import java.util.function.IntConsumer;
+
+/**
+ * Optional wrapper for {@link Integer} with positive-value checks.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+public final class IntegerOptional {
+
+    private final Integer value;
+
+    private IntegerOptional(Integer value) {
+        this.value = value;
+    }
+
+    /**
+     * Create a wrapper that treats {@code null} and non-positive integers as absent.
+     *
+     * @param value integer to wrap
+     * @return wrapper for the supplied value
+     */
+    public static IntegerOptional ofNullable(Integer value) {
+        return new IntegerOptional(value);
+    }
+
+    /**
+     * Invoke the action when the wrapped integer is positive.
+     *
+     * @param action action that consumes the present integer
+     */
+    public void ifPresent(IntConsumer action) {
+        if (Objects.nonNull(value) && value > DefaultConstant.ZERO) {
+            action.accept(value);
+        }
+    }
+
+    /**
+     * Invoke exactly one branch according to whether the wrapped integer is positive.
+     *
+     * @param action      action that consumes a positive integer
+     * @param emptyAction action to run for a {@code null} or non-positive integer
+     */
+    public void ifPresentOrElse(IntConsumer action, Runnable emptyAction) {
+        if (Objects.nonNull(value) && value > DefaultConstant.ZERO) {
+            action.accept(value);
+        } else {
+            emptyAction.run();
+        }
+    }
+}

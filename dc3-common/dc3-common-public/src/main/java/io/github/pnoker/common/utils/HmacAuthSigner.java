@@ -1,0 +1,128 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.utils;
+
+import io.github.pnoker.common.constant.common.EnvironmentConstant;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.util.HexFormat;
+import java.util.Objects;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+
+/**
+ * HMAC-SHA256 signer for the {@code X-Auth-Principal} header.
+ * <p>
+ * The gateway computes a signature of the user JSON and forwards it as {@code X-Auth-Sign}.
+ * Backend services verify the signature before trusting any tenant/user identity claims —
+ * without this, any client able to reach a backend port directly can spoof any tenant by
+ * crafting their own {@code X-Auth-Principal} header.
+ * <p>
+ * The shared secret is read from {@code dc3.auth.hmac.secret} (or the {@code
+ * AUTH_HMAC_SECRET} environment variable). When neither is set in dev/test, signing is
+ * disabled and a loud warning is emitted at startup. Protected environments fail fast
+ * before this signer is created.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Slf4j
+public class HmacAuthSigner {
+
+    private static final String ALGO = "HmacSHA256";
+
+    private final byte[] secret;
+
+    private final boolean enabled;
+
+    /**
+     * Create a signer from the shared secret used by trusted gateway and backend services.
+     * A blank secret disables signing; protected profiles reject that configuration before
+     * constructing this component.
+     *
+     * @param secret shared HMAC secret, or blank to disable signing in development
+     */
+    public HmacAuthSigner(String secret) {
+        if (StringUtils.isBlank(secret)) {
+            this.secret = null;
+            this.enabled = false;
+            log.warn(
+                    "HMAC principal signing disabled, property={}, environmentVariable={}, productionSafe=false",
+                    EnvironmentConstant.AUTH_HMAC_SECRET_PROPERTY,
+                    EnvironmentConstant.AUTH_HMAC_SECRET_ENV);
+        } else {
+            this.secret = secret.getBytes(StandardCharsets.UTF_8);
+            this.enabled = true;
+            log.info("X-Auth-Principal header signing enabled (HMAC-SHA256).");
+        }
+    }
+
+    /**
+     * Report whether this signer has a usable shared secret.
+     *
+     * @return {@code true} when signing and verification are enabled
+     */
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    /**
+     * Sign a payload with HMAC-SHA256.
+     *
+     * @param payload UTF-8 payload to sign
+     * @return hex-encoded HMAC of {@code payload}, or {@code null} when signing is disabled
+     * or the payload is null.
+     */
+    public String sign(String payload) {
+        if (!enabled || Objects.isNull(payload)) {
+            return null;
+        }
+        try {
+            Mac mac = Mac.getInstance(ALGO);
+            mac.init(new SecretKeySpec(secret, ALGO));
+            byte[] sig = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(sig);
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException("HMAC signing failed", e);
+        }
+    }
+
+    /**
+     * Constant-time verification of a signature against a payload. Caller must check
+     * {@link #isEnabled()} first if it wants to skip verification when signing is disabled.
+     *
+     * @param payload     UTF-8 payload whose signature is being verified
+     * @param expectedHex expected hexadecimal HMAC
+     * @return {@code true} iff the supplied hex signature matches the computed HMAC.
+     */
+    public boolean verify(String payload, String expectedHex) {
+        if (!enabled || Objects.isNull(payload) || Objects.isNull(expectedHex)) {
+            return false;
+        }
+        String actual = sign(payload);
+        if (Objects.isNull(actual) || actual.length() != expectedHex.length()) {
+            return false;
+        }
+        int diff = 0;
+        for (int i = 0; i < actual.length(); i++) {
+            diff |= actual.charAt(i) ^ expectedHex.charAt(i);
+        }
+        return diff == 0;
+    }
+}

@@ -1,0 +1,78 @@
+#
+# Copyright 2016-present the IoT DC3 original author or authors.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
+dc3:
+  driver:
+    tenant: default
+    name: Listening Virtual TCP/UDP Driver
+    code: ListeningVirtualDriver
+    type: DRIVER_SERVER
+    remark: @project.description@
+    custom:
+      tcp:
+        port: ${TCP_PORT:6270}
+      udp:
+        port: ${UDP_PORT:6271}
+    schedule:
+      # Read data regularly
+      read:
+        enable: false
+        cron: '0/30 * * * * ?'
+      custom:
+        enable: true
+        cron: '0/5 * * * * ?'
+    health:
+      device:
+        enable: true
+        cron: '0/15 * * * * ?'
+        timeout: 45
+        timeout-unit: SECONDS
+    point-attribute:
+      - attribute-name: Keyword
+        attribute-code: key
+        attribute-type-flag: STRING
+        default-value: 62
+        remark: Packet identification keyword
+      - attribute-name: Start Byte
+        attribute-code: start
+        attribute-type-flag: INT
+        default-value: 0
+        remark: Inclusive start byte offset
+      - attribute-name: End Byte
+        attribute-code: end
+        attribute-type-flag: INT
+        default-value: 8
+        remark: Exclusive end byte offset
+      - attribute-name: Type
+        attribute-code: type
+        attribute-type-flag: STRING
+        default-value: string
+        remark: Parse type, short, int, long, float, double, boolean, string
+
+    buffer:
+      db-path: dc3/data/driver/listening-virtual/buffer.db
+
+spring:
+  application:
+    name: @project.artifactId@
+  profiles:
+    active:
+      - ${NODE_ENV:dev}
+
+logging:
+  file:
+    name: dc3/logs/driver/listening-virtual/${spring.application.name}.log

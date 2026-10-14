@@ -1,0 +1,143 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+import {addUser, deleteUser, listUser, updateUser} from '@/api/user';
+import type {EntityListConfig, Translator} from '@/config/types/entityList';
+import {AUTH_NAME_PATTERN, EMAIL_PATTERN, NAME_PATTERN, PHONE_PATTERN} from '@/utils/formRuleUtil';
+
+interface UserHandlers {
+  onAssignRoles: (row: Record<string, any>) => void;
+}
+
+/**
+ * Create user config.
+ * @param t - i18n translator for localized messages
+ * @param handlers - handlers entries
+ * @returns the operation result
+ */
+export const createUserConfig = (t: Translator, handlers: UserHandlers): EntityListConfig => ({
+  name: 'user',
+  title: t('nav.settingsUser'),
+  editable: true,
+  // Mobile record-card header tile — keeps table cards in the entity-card
+  // visual family (same tone-tile grammar as driver/device/point cards).
+  mobileCardIcon: 'User',
+  mobileCardTone: 'blue',
+  searchFields: [
+    {
+      prop: 'nickName',
+      label: t('settings.user.nickName'),
+      kind: 'input',
+      placeholder: t('settings.user.nickNamePlaceholder'),
+    },
+    {
+      prop: 'userName',
+      label: t('settings.user.userName'),
+      kind: 'input',
+      placeholder: t('settings.user.userNamePlaceholder'),
+    },
+    {
+      prop: 'phone',
+      label: t('settings.user.phone'),
+      kind: 'input',
+      placeholder: t('settings.user.phonePlaceholder'),
+    },
+    {
+      prop: 'email',
+      label: t('settings.user.email'),
+      kind: 'input',
+      placeholder: t('settings.user.emailPlaceholder'),
+    },
+    {prop: 'enableFlag', label: t('common.enableFlag'), kind: 'enableFlag', includeAll: true},
+  ],
+  columns: [
+    {prop: 'nickName', label: t('settings.user.nickName'), minWidth: 120},
+    {prop: 'userName', label: t('settings.user.userName'), minWidth: 140},
+    {prop: 'phone', label: t('settings.user.phone'), minWidth: 140},
+    {prop: 'email', label: t('settings.user.email'), minWidth: 180},
+    {prop: 'enableFlag', label: t('common.enable'), kind: 'enable', width: 90},
+    {prop: 'createTime', label: t('common.createTime'), kind: 'time', width: 165},
+  ],
+  fields: [
+    {
+      prop: 'userName',
+      label: t('settings.user.userName'),
+      placeholder: t('settings.user.userNamePlaceholder'),
+      maxlength: 32,
+      disabledOnEdit: true,
+      rules: [
+        {required: true, whitespace: true, message: t('settings.user.userNamePlaceholder'), trigger: 'blur'},
+        {min: 2, max: 32, message: t('common.authNameLength'), trigger: 'blur'},
+        {pattern: AUTH_NAME_PATTERN, message: t('common.authNameFormat'), trigger: 'blur'},
+      ],
+    },
+    {
+      prop: 'nickName',
+      label: t('settings.user.nickName'),
+      placeholder: t('settings.user.nickNamePlaceholder'),
+      maxlength: 32,
+      rules: [
+        {required: true, whitespace: true, message: t('settings.user.nickNamePlaceholder'), trigger: 'blur'},
+        {min: 2, max: 32, message: t('common.nameLength'), trigger: 'blur'},
+        {pattern: NAME_PATTERN, message: t('common.nameFormat'), trigger: 'blur'},
+      ],
+    },
+    {
+      prop: 'phone',
+      label: t('settings.user.phone'),
+      placeholder: t('settings.user.phonePlaceholder'),
+      maxlength: 11,
+      rules: [{pattern: PHONE_PATTERN, message: t('settings.user.phoneFormat'), trigger: 'blur'}],
+    },
+    {
+      prop: 'email',
+      label: t('settings.user.email'),
+      placeholder: t('settings.user.emailPlaceholder'),
+      maxlength: 128,
+      rules: [{pattern: EMAIL_PATTERN, message: t('settings.user.emailFormat'), trigger: 'blur'}],
+    },
+    {prop: 'enableFlag', label: t('common.enableFlag'), kind: 'enableFlag'},
+  ],
+  defaultForm: () => ({
+    userName: '',
+    nickName: '',
+    phone: '',
+    email: '',
+    enableFlag: 'ENABLE',
+  }),
+  toPayload: (form) => {
+    const next = {...form};
+    if (!next.phone) delete next.phone;
+    if (!next.email) delete next.email;
+    return next;
+  },
+  list: listUser,
+  add: addUser,
+  update: updateUser,
+  remove: deleteUser,
+  detail: {routeName: 'settingsUserDetail'},
+  extraActions: [
+    {
+      key: 'assignRoles',
+      label: t('settings.user.assignRoles'),
+      type: 'warning',
+      onClick: handlers.onAssignRoles,
+    },
+  ],
+  confirmDeleteText: t('common.confirmDelete', {name: t('common.entityUser')}),
+  emptyText: t('settings.user.empty'),
+});

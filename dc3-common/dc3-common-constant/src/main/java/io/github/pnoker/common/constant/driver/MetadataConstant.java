@@ -1,0 +1,174 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.constant.driver;
+
+import io.github.pnoker.common.constant.common.BaseConstant;
+import io.github.pnoker.common.constant.common.PrefixConstant;
+import io.github.pnoker.common.constant.common.SuffixConstant;
+
+/**
+ * Constants for driver metadata attributes and configuration.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+public class MetadataConstant {
+
+    private MetadataConstant() {
+        throw new IllegalStateException(BaseConstant.UTILITY_CLASS);
+    }
+
+    /**
+     * Profile metadata related constants
+     *
+     * @author pnoker
+     * @since 2016.10.1
+     */
+    public static class Profile {
+
+        /**
+         * add constant.
+         */
+        public static final String ADD = PrefixConstant.ADD + SuffixConstant.PROFILE;
+
+        /**
+         * delete constant.
+         */
+        public static final String DELETE = PrefixConstant.DELETE + SuffixConstant.PROFILE;
+
+        /**
+         * update constant.
+         */
+        public static final String UPDATE = PrefixConstant.UPDATE + SuffixConstant.PROFILE;
+
+        private Profile() {
+            throw new IllegalStateException(BaseConstant.UTILITY_CLASS);
+        }
+    }
+
+    /**
+     * Point metadata related constants
+     *
+     * @author pnoker
+     * @since 2016.10.1
+     */
+    public static class Point {
+
+        /**
+         * add constant.
+         */
+        public static final String ADD = PrefixConstant.ADD + SuffixConstant.POINT;
+
+        /**
+         * delete constant.
+         */
+        public static final String DELETE = PrefixConstant.DELETE + SuffixConstant.POINT;
+
+        /**
+         * update constant.
+         */
+        public static final String UPDATE = PrefixConstant.UPDATE + SuffixConstant.POINT;
+
+        private Point() {
+            throw new IllegalStateException(BaseConstant.UTILITY_CLASS);
+        }
+    }
+
+    /**
+     * Device metadata related constants
+     *
+     * @author pnoker
+     * @since 2016.10.1
+     */
+    public static class Device {
+
+        /**
+         * add constant.
+         */
+        public static final String ADD = PrefixConstant.ADD + SuffixConstant.DEVICE;
+
+        /**
+         * delete constant.
+         */
+        public static final String DELETE = PrefixConstant.DELETE + SuffixConstant.DEVICE;
+
+        /**
+         * update constant.
+         */
+        public static final String UPDATE = PrefixConstant.UPDATE + SuffixConstant.DEVICE;
+
+        private Device() {
+            throw new IllegalStateException(BaseConstant.UTILITY_CLASS);
+        }
+    }
+
+    /**
+     * Driver configuration metadata related constants
+     *
+     * @author pnoker
+     * @since 2016.10.1
+     */
+    public static class DriverConfig {
+
+        /**
+         * add constant.
+         */
+        public static final String ADD = PrefixConstant.ADD + SuffixConstant.DRIVER_ATTRIBUTE_CONFIG;
+
+        /**
+         * delete constant.
+         */
+        public static final String DELETE = PrefixConstant.DELETE + SuffixConstant.DRIVER_ATTRIBUTE_CONFIG;
+
+        /**
+         * update constant.
+         */
+        public static final String UPDATE = PrefixConstant.UPDATE + SuffixConstant.DRIVER_ATTRIBUTE_CONFIG;
+
+        private DriverConfig() {
+            throw new IllegalStateException(BaseConstant.UTILITY_CLASS);
+        }
+    }
+
+    /**
+     * Point configuration metadata related constants
+     *
+     * @author pnoker
+     * @since 2016.10.1
+     */
+    public static class PointConfig {
+
+        /**
+         * add constant.
+         */
+        public static final String ADD = PrefixConstant.ADD + SuffixConstant.POINT_ATTRIBUTE_CONFIG;
+
+        /**
+         * delete constant.
+         */
+        public static final String DELETE = PrefixConstant.DELETE + SuffixConstant.POINT_ATTRIBUTE_CONFIG;
+
+        /**
+         * update constant.
+         */
+        public static final String UPDATE = PrefixConstant.UPDATE + SuffixConstant.POINT_ATTRIBUTE_CONFIG;
+
+        private PointConfig() {
+            throw new IllegalStateException(BaseConstant.UTILITY_CLASS);
+        }
+    }
+}

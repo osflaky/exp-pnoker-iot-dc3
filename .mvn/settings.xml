@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  ~ Copyright 2016-present the IoT DC3 original author or authors.
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU Affero General Public License as
+  ~ published by the Free Software Foundation, either version 3 of the
+  ~ License, or (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU Affero General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Affero General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  -->
+
+<settings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+    <!-- mirrors
+     | This is a list of mirrors to be used in downloading artifacts from remote repositories.
+     |
+     | It works like this: a POM may declare a repository to use in resolving certain artifacts.
+     | However, this repository may have problems with heavy traffic at times, so people have mirrored
+     | it to several places.
+     |
+     | That repository definition will have a unique id, so we can create a mirror reference for that
+     | repository, to be used as an alternate download site. The mirror site will be the preferred
+     | server for that repository.
+     |-->
+    <mirrors>
+
+        <mirror>
+            <id>public</id>
+            <mirrorOf>central</mirrorOf>
+            <name>Aliyun Apache Maven Public Packages</name>
+            <url>https://maven.aliyun.com/repository/public</url>
+        </mirror>
+
+    </mirrors>
+
+</settings>

@@ -1,0 +1,241 @@
+<!--
+  - Copyright 2016-present the IoT DC3 original author or authors.
+  -
+  - This program is free software: you can redistribute it and/or modify
+  - it under the terms of the GNU Affero General Public License as
+  - published by the Free Software Foundation, either version 3 of the
+  - License, or (at your option) any later version.
+  -
+  - This program is distributed in the hope that it will be useful,
+  - but WITHOUT ANY WARRANTY; without even the implied warranty of
+  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  - GNU Affero General Public License for more details.
+  -
+  - You should have received a copy of the GNU Affero General Public License
+  - along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  -->
+
+<template>
+  <dashboard-card
+    :badge="rows.length || null"
+    :empty="status === 'success' && rows.length === 0"
+    :empty-text="$t('home.alertList.empty')"
+    :error="status === 'error'"
+    :error-text="$t('common.loadFailed')"
+    :footer-meta="
+      status === 'success' ? $t('home.alertList.footer', {total: stats.total, n: stats.unconfirmed}) : ''
+    "
+    :loading="loading"
+    :retry-text="$t('common.retry')"
+    :title="$t('home.alertList.title')"
+    body-mode="scroll"
+    class="alert-list"
+    loading-target="button"
+    @refresh="refresh"
+  >
+    <div v-for="group in groupedRows" :key="group.date" class="alert-list__group">
+      <div class="alert-list__date">{{ group.date }}</div>
+      <el-timeline>
+        <el-timeline-item
+          v-for="row in group.items"
+          :key="row.id"
+          :hollow="row.confirmFlag === 'CONFIRMED'"
+          :timestamp="formatClock(row.createTime)"
+          :type="timelineColour(row.alarmTypeFlag)"
+          placement="top"
+        >
+          <div class="alert-list__body">
+            <div class="alert-list__tags">
+              <el-tag :type="tagType(row.alarmTypeFlag)" size="small">
+                {{ levelLabel(row.alarmTypeFlag) }}
+              </el-tag>
+              <el-tag :type="sourceTagType(row.source)" size="small">
+                {{ sourceLabel(row) }}
+              </el-tag>
+              <span class="alert-list__name">{{ nameFor(row) }}</span>
+              <el-tag v-if="row.confirmFlag === 'CONFIRMED'" effect="plain" size="small" type="success">
+                {{ $t('common.confirmed') }}
+              </el-tag>
+            </div>
+            <div v-if="row.message" :title="row.message" class="alert-list__message">{{ row.message }}</div>
+          </div>
+        </el-timeline-item>
+      </el-timeline>
+    </div>
+  </dashboard-card>
+</template>
+
+<script lang="ts" setup>
+import {computed, onMounted, reactive, ref, watch} from 'vue';
+import {useI18n} from 'vue-i18n';
+
+import {alertLatest, alertStats} from '@/api/dashboard';
+import DashboardCard from '@/components/card/dashboard/DashboardCard.vue';
+import {useEntityNames} from '@/composables/useEntityNames';
+import type {AlertSource} from '@/config/types/dashboard';
+import {useAsyncLoader} from '@/utils/asyncLoaderUtil';
+
+interface AlertRow {
+  id: string;
+  source: AlertSource;
+  sourceId: string;
+  pointId: string;
+  alarmTypeFlag: number;
+  confirmFlag: string;
+  createTime: string;
+  message?: string;
+}
+
+const props = defineProps({
+  size: {type: Number, default: 10},
+});
+
+const {t, locale} = useI18n();
+
+const {loading, run, status} = useAsyncLoader();
+const rows = ref<AlertRow[]>([]);
+const stats = reactive({total: 0, unconfirmed: 0});
+const {resolveBySource, nameBySource} = useEntityNames();
+
+const refresh = async () => {
+  await run(
+    async () => {
+      const [summary, latest]: any = await Promise.all([alertStats(), alertLatest(props.size)]);
+      const data: AlertRow[] = Array.isArray(latest) ? latest : latest?.items ?? [];
+      await resolveBySource(data);
+      return {summary, data};
+    },
+    {
+      apply: ({summary, data}) => {
+        stats.total = (summary?.driverAlerts ?? 0) + (summary?.deviceAlerts ?? 0);
+        stats.unconfirmed = (summary?.driverUnconfirmed ?? 0) + (summary?.deviceUnconfirmed ?? 0);
+        rows.value = data;
+      },
+    }
+  );
+};
+
+// Group the flat row list by YYYY-MM-DD so the timeline has day headings.
+const groupedRows = computed(() => {
+  const byDate = new Map<string, AlertRow[]>();
+  for (const row of rows.value) {
+    const d = parseTime(row.createTime);
+    const key = d ? d.toLocaleDateString(locale.value === 'zh' ? 'zh-CN' : 'en-US') : '-';
+    if (!byDate.has(key)) byDate.set(key, []);
+    byDate.get(key)!.push(row);
+  }
+  // Map preserves insertion order; rows come back newest-first so date
+  // groups also land newest-first without extra sorting.
+  return Array.from(byDate.entries()).map(([date, items]) => ({date, items}));
+});
+
+const sourceLabel = (r: AlertRow) => {
+  if (r.source === 'point') return t('home.alertList.sourcePoint');
+  if (r.source === 'driver') return t('home.alertList.sourceDriver');
+  return t('home.alertList.sourceDevice');
+};
+
+const nameFor = (r: AlertRow) => nameBySource(r.source, r.sourceId);
+
+const sourceTagType = (s: AlertSource) => (s === 'device' ? 'primary' : s === 'driver' ? 'warning' : 'success');
+
+const levelLabel = (flag: number) => {
+  switch (flag) {
+    case 2:
+    case 3:
+      return t('common.levelError');
+    case 1:
+      return t('common.levelWarn');
+    default:
+      return t('common.levelInfo');
+  }
+};
+
+const tagType = (flag: number): 'info' | 'warning' | 'danger' => {
+  if (flag >= 2) return 'danger';
+  if (flag === 1) return 'warning';
+  return 'info';
+};
+
+const timelineColour = (flag: number): 'primary' | 'warning' | 'danger' | 'info' => {
+  if (flag >= 2) return 'danger';
+  if (flag === 1) return 'warning';
+  return 'primary';
+};
+
+const parseTime = (v?: string): Date | null => {
+  if (!v) return null;
+  const d = new Date(v.replace(' ', 'T'));
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const formatClock = (v?: string) => {
+  const d = parseTime(v);
+  if (!d) return v || '';
+  return d.toLocaleTimeString(locale.value === 'zh' ? 'zh-CN' : 'en-US', {hour12: false});
+};
+
+onMounted(refresh);
+watch(locale, refresh);
+defineExpose({refresh});
+</script>
+
+<style lang="scss" scoped>
+.alert-list {
+  .alert-list__group {
+    padding: var(--dc3-space-2) var(--dc3-space-4) 0;
+
+    &:last-child {
+      padding-bottom: var(--dc3-space-2);
+    }
+  }
+
+  .alert-list__date {
+    font-size: 12px;
+    font-weight: 600;
+    color: #909399;
+    padding: 4px 0 6px;
+    border-bottom: 1px dashed var(--el-border-color-lighter);
+    margin-bottom: 8px;
+  }
+
+  :deep(.el-timeline) {
+    padding-left: 4px;
+  }
+
+  :deep(.el-timeline-item__timestamp) {
+    font-size: 12px;
+    color: #909399;
+    margin-bottom: 2px;
+  }
+
+  .alert-list__body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .alert-list__tags {
+    display: flex;
+    align-items: center;
+    gap: var(--dc3-space-2);
+    flex-wrap: wrap;
+  }
+
+  .alert-list__name {
+    font-size: 13px;
+    color: #606266;
+  }
+
+  .alert-list__message {
+    font-size: 12px;
+    color: #909399;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+  }
+}
+</style>

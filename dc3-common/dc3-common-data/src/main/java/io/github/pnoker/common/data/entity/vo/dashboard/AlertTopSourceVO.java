@@ -1,0 +1,56 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.data.entity.vo.dashboard;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.io.Serial;
+import java.io.Serializable;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+/**
+ * Top event source by alarm count.
+ *
+ * @author pnoker
+ * @since 2026.5.3
+ */
+@Getter
+@Setter
+@ToString
+@NoArgsConstructor
+@Schema(description = "Top event source ranked by alarm count")
+public class AlertTopSourceVO implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    @Schema(
+            description = "Alarm source category; one of the supported source types (e.g. device or driver).",
+            example = "device")
+    private String source;
+
+    @Schema(
+            description =
+                    "Identifier of the source entity (device id or driver id) the alarms belong to; must resolve within the current tenant.",
+            example = "1024")
+    private String sourceId;
+
+    @Schema(description = "Number of alarms attributed to this source within the query window.", example = "256")
+    private long count;
+}

@@ -1,0 +1,180 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+syntax = "proto3";
+
+package api.common.data;
+
+
+// Configuration options for code generation
+option java_package = "io.github.pnoker.api.center.data";
+option java_outer_classname = "PointValueProto";
+option objc_class_prefix = "Data";
+option java_multiple_files = true;
+
+// Service interface defining RPC calls related to point values
+service PointValueApi {
+  // Query the latest collected value of a device point
+  rpc GetLastValue (GrpcPointValueQuery) returns (GrpcPointValueDTO);
+
+  // Query historical values of a device point
+  rpc ListHistoryValues (GrpcPointValueHistoryQuery) returns (GrpcPointValueCursorPage);
+
+  // Per-series sample volumes since a timestamp — dashboard topology weights
+  rpc ListSeriesVolumes (GrpcPointVolumeQuery) returns (GrpcPointVolumeList);
+
+  // Send a read command to a device for a specific point
+  rpc ReadCommand (GrpcPointValueCommandQuery) returns (GrpcPointCommandAccepted);
+
+  // Send a write command to a device for a specific point
+  rpc WriteCommand (GrpcPointValueWriteCommand) returns (GrpcPointCommandAccepted);
+}
+
+// Request structure for querying a single point value
+message GrpcPointValueQuery {
+  // Device ID
+  int64 device_id = 1;
+
+  // Point ID
+  int64 point_id = 2;
+
+  // Tenant ID
+  int64 tenant_id = 3;
+}
+
+// Point value data structure
+message GrpcPointValueDTO {
+  // Record ID
+  int64 id = 1;
+
+  // Device ID
+  int64 device_id = 2;
+
+  // Point ID
+  int64 point_id = 3;
+
+  // Processed value
+  string value = 4;
+
+  // Raw value from device
+  string raw_value = 5;
+
+  // Storage timestamp
+  int64 create_time = 6;
+
+  // Numeric projection of value; populated when value parses cleanly as a double
+  double num_value = 7;
+}
+
+// Request structure for querying historical point values
+message GrpcPointValueHistoryQuery {
+  // Device ID
+  int64 device_id = 1;
+
+  // Point ID
+  int64 point_id = 2;
+
+  // Tenant ID
+  int64 tenant_id = 3;
+
+  // Opaque cursor returned by the previous page
+  string cursor = 4;
+
+  // Number of records to retrieve (1..500)
+  int32 limit = 5;
+}
+
+// Cursor page for historical values (newest first, each with its timestamp)
+message GrpcPointValueCursorPage {
+  // Historical point values, each carrying its value and create_time.
+  repeated GrpcPointValueDTO data = 2;
+
+  // Opaque cursor for the next page; empty when exhausted.
+  string next_cursor = 3;
+
+  // Effective page size.
+  int32 limit = 4;
+
+  // True when another page is available.
+  bool has_next = 5;
+}
+
+// Request for per-series volume counts
+message GrpcPointVolumeQuery {
+  // Tenant ID
+  int64 tenant_id = 1;
+
+  // Inclusive lower bound for the sample window, epoch milliseconds
+  int64 from_time = 2;
+}
+
+// One (device, point) series volume row
+message GrpcPointVolumeDTO {
+  // Device ID
+  int64 device_id = 1;
+
+  // Point ID
+  int64 point_id = 2;
+
+  // Sample count inside the window
+  int64 count = 3;
+}
+
+// Response wrapper for per-series volume counts
+message GrpcPointVolumeList {
+  // Volume rows
+  repeated GrpcPointVolumeDTO data = 2;
+}
+
+// Request structure for sending a read command
+message GrpcPointValueCommandQuery {
+  // Device ID
+  int64 device_id = 1;
+
+  // Point ID
+  int64 point_id = 2;
+
+  // Tenant ID
+  int64 tenant_id = 3;
+
+  // PointCommandSourceEnum index (0=http, 1=grpc, 2=agentic, 3=scheduled).
+  int32 source = 4;
+}
+
+// Request structure for sending a write command
+message GrpcPointValueWriteCommand {
+  // Device ID
+  int64 device_id = 1;
+
+  // Point ID
+  int64 point_id = 2;
+
+  // Value to write
+  string value = 3;
+
+  // Tenant ID
+  int64 tenant_id = 4;
+
+  // PointCommandSourceEnum index (0=http, 1=grpc, 2=agentic, 3=scheduled).
+  int32 source = 5;
+}
+
+// Accepted asynchronous point command.
+message GrpcPointCommandAccepted {
+  // Command identifier used to query command history.
+  string command_id = 1;
+}

@@ -1,0 +1,130 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.driver.entity.builder;
+
+import io.github.pnoker.api.common.GrpcBase;
+import io.github.pnoker.api.common.GrpcDriverAttributeDTO;
+import io.github.pnoker.common.constant.common.DefaultConstant;
+import io.github.pnoker.common.driver.entity.dto.DriverAttributeDTO;
+import io.github.pnoker.common.entity.ext.DriverAttributeExt;
+import io.github.pnoker.common.enums.AttributeTypeEnum;
+import io.github.pnoker.common.optional.EnableOptional;
+import io.github.pnoker.common.optional.JsonOptional;
+import io.github.pnoker.common.utils.GrpcBuilderUtil;
+import io.github.pnoker.common.utils.JsonUtil;
+import io.github.pnoker.common.utils.MapStructUtil;
+import java.util.Optional;
+import org.mapstruct.AfterMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
+/**
+ * MapStruct mapper for converting driver attribute definitions between gRPC DTOs and
+ * internal DTOs.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@Mapper(
+        componentModel = "spring",
+        uses = {MapStructUtil.class})
+public interface GrpcDriverAttributeBuilder {
+
+    /**
+     * Convert grpc transfer object to dto.
+     *
+     * @param entityGrpc entity grpc
+     * @return converted value
+     */
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "remark", ignore = true)
+    @Mapping(target = "creatorId", ignore = true)
+    @Mapping(target = "creatorName", ignore = true)
+    @Mapping(target = "createTime", ignore = true)
+    @Mapping(target = "operatorId", ignore = true)
+    @Mapping(target = "operatorName", ignore = true)
+    @Mapping(target = "operateTime", ignore = true)
+    @Mapping(target = "attributeExt", ignore = true)
+    @Mapping(target = "attributeTypeFlag", ignore = true)
+    @Mapping(target = "enableFlag", ignore = true)
+    DriverAttributeDTO buildDTOByGrpcDTO(GrpcDriverAttributeDTO entityGrpc);
+
+    /**
+     * After process.
+     *
+     * @param entityGrpc entity grpc
+     * @param entityDTO  transfer object
+     */
+    @AfterMapping
+    default void afterProcess(GrpcDriverAttributeDTO entityGrpc, @MappingTarget DriverAttributeDTO entityDTO) {
+        GrpcBuilderUtil.buildBaseDTOByGrpcBase(entityGrpc.getBase(), entityDTO);
+
+        JsonOptional.ofNullable(entityGrpc.getAttributeExt())
+                .ifPresent(value -> entityDTO.setAttributeExt(JsonUtil.parseObject(value, DriverAttributeExt.class)));
+        Optional.ofNullable(AttributeTypeEnum.ofIndex((byte) entityGrpc.getAttributeTypeFlag()))
+                .ifPresent(entityDTO::setAttributeTypeFlag);
+        EnableOptional.ofNullable(entityGrpc.getEnableFlag()).ifPresent(entityDTO::setEnableFlag);
+    }
+
+    /**
+     * Convert dto to grpc transfer object.
+     *
+     * @param entityDTO transfer object
+     * @return converted value
+     */
+    @Mapping(target = "attributeExt", ignore = true)
+    @Mapping(target = "attributeTypeFlag", ignore = true)
+    @Mapping(target = "enableFlag", ignore = true)
+    @Mapping(target = "attributeNameBytes", ignore = true)
+    @Mapping(target = "attributeCodeBytes", ignore = true)
+    @Mapping(target = "defaultValueBytes", ignore = true)
+    @Mapping(target = "attributeExtBytes", ignore = true)
+    @Mapping(target = "signatureBytes", ignore = true)
+    @Mapping(target = "mergeFrom", ignore = true)
+    @Mapping(target = "clearField", ignore = true)
+    @Mapping(target = "clearOneof", ignore = true)
+    @Mapping(target = "base", ignore = true)
+    @Mapping(target = "mergeBase", ignore = true)
+    @Mapping(target = "unknownFields", ignore = true)
+    @Mapping(target = "mergeUnknownFields", ignore = true)
+    @Mapping(target = "allFields", ignore = true)
+    GrpcDriverAttributeDTO buildGrpcDTOByDTO(DriverAttributeDTO entityDTO);
+
+    /**
+     * After process.
+     *
+     * @param entityDTO  transfer object
+     * @param entityGrpc entity grpc
+     */
+    @AfterMapping
+    default void afterProcess(DriverAttributeDTO entityDTO, @MappingTarget GrpcDriverAttributeDTO.Builder entityGrpc) {
+        GrpcBase grpcBase = GrpcBuilderUtil.buildGrpcBaseByDTO(entityDTO);
+        entityGrpc.setBase(grpcBase);
+
+        Optional.ofNullable(entityDTO.getAttributeExt())
+                .ifPresent(value -> entityGrpc.setAttributeExt(JsonUtil.toJsonString(value)));
+        Optional.ofNullable(entityDTO.getAttributeTypeFlag())
+                .ifPresentOrElse(
+                        value -> entityGrpc.setAttributeTypeFlag(value.getIndex()),
+                        () -> entityGrpc.setAttributeTypeFlag(DefaultConstant.NULL_INT));
+        Optional.ofNullable(entityDTO.getEnableFlag())
+                .ifPresentOrElse(
+                        value -> entityGrpc.setEnableFlag(value.getIndex()),
+                        () -> entityGrpc.setEnableFlag(DefaultConstant.DEFAULT_INT));
+    }
+}

@@ -1,0 +1,44 @@
+#
+# Copyright 2016-present the IoT DC3 original author or authors.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
+# Agentic module defaults loaded when the "agentic" Spring profile is active.
+# These can be overridden in the center service's own application.yml.
+
+spring:
+  ai:
+    openai:
+      # Used only by Spring AI's fallback ChatClient when no database model/provider matches.
+      # Normal Agentic provider credentials are loaded from dc3_model_provider.
+      base-url: ${AGENTIC_FALLBACK_OPENAI_BASE_URL:https://api.openai.com}
+      api-key: ${AGENTIC_FALLBACK_OPENAI_API_KEY:}
+      chat:
+        options:
+          model: ${AGENTIC_FALLBACK_OPENAI_MODEL:gpt-4o}
+          temperature: ${AGENTIC_FALLBACK_OPENAI_TEMPERATURE:0.7}
+          max-tokens: ${AGENTIC_FALLBACK_OPENAI_MAX_TOKENS:2048}
+
+dc3:
+  agentic:
+    enabled: true
+    memory-enabled: ${AGENTIC_MEMORY_ENABLED:true}
+    history-window-size: ${AGENTIC_HISTORY_WINDOW_SIZE:30}
+    tool-calling-enabled: ${AGENTIC_TOOL_CALLING_ENABLED:true}
+    fallback-tool-calling-enabled: ${AGENTIC_FALLBACK_TOOL_CALLING_ENABLED:true}
+    fallback-vision-enabled: ${AGENTIC_FALLBACK_VISION_ENABLED:true}
+    fallback-reasoning-enabled: ${AGENTIC_FALLBACK_REASONING_ENABLED:false}
+    memory-max-messages: ${AGENTIC_MEMORY_MAX_MESSAGES:50}
+    attachment-storage-path: ${AGENTIC_ATTACHMENT_STORAGE_PATH:dc3/data/upload/agentic/attachment}

@@ -1,0 +1,110 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.auth.tool;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.github.pnoker.common.utils.JsonUtil;
+import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
+
+/**
+ * Covers {@link McpOpenApiAggregator#buildOperationSchema} — the merge of JSON request body
+ * fields with query/path parameters into one MCP input schema.
+ */
+class McpOpenApiAggregatorTest {
+
+    private final ObjectMapper mapper = JsonUtil.getJsonMapper();
+
+    private final McpOpenApiAggregator aggregator = new McpOpenApiAggregator();
+
+    @Test
+    void mergesRequestBodyFieldsWithQueryAndPathParameters() throws Exception {
+        JsonNode operation = mapper.readTree("""
+                {
+                  "parameters": [
+                    {"name": "tenantId", "in": "path", "schema": {"type": "integer"}},
+                    {"name": "keyword", "in": "query", "required": true,
+                     "description": "search keyword", "schema": {"type": "string"}},
+                    {"name": "page", "in": "query", "schema": {"type": "integer"}}
+                  ],
+                  "requestBody": {"content": {"application/json": {"schema": {
+                    "type": "object",
+                    "properties": {"deviceName": {"type": "string"}},
+                    "required": ["deviceName"]
+                  }}}}
+                }
+                """);
+
+        ObjectNode schema = aggregator.buildOperationSchema(operation, mapper.createObjectNode());
+
+        assertThat(schema).isNotNull();
+        assertThat(schema.get("type").asText()).isEqualTo("object");
+        JsonNode props = schema.get("properties");
+        assertThat(props.has("deviceName")).isTrue();
+        assertThat(props.has("tenantId")).isTrue();
+        assertThat(props.has("keyword")).isTrue();
+        assertThat(props.get("keyword").get("description").asText()).isEqualTo("search keyword");
+        assertThat(props.has("page")).isTrue();
+        // deviceName (body required), tenantId (path always), keyword (query required) — page is optional.
+        assertThat(schema.get("required"))
+                .extracting(JsonNode::asText)
+                .containsExactlyInAnyOrder("deviceName", "tenantId", "keyword");
+    }
+
+    @Test
+    void getOnlyOperationStillProducesSchema() throws Exception {
+        JsonNode operation = mapper.readTree("""
+                {
+                  "parameters": [
+                    {"name": "id", "in": "query", "required": true, "schema": {"type": "integer"}}
+                  ]
+                }
+                """);
+
+        ObjectNode schema = aggregator.buildOperationSchema(operation, mapper.createObjectNode());
+
+        assertThat(schema).isNotNull();
+        assertThat(schema.get("properties").has("id")).isTrue();
+        assertThat(schema.get("required")).extracting(JsonNode::asText).containsExactly("id");
+    }
+
+    @Test
+    void operationWithoutBodyOrParametersReturnsNull() throws Exception {
+        JsonNode operation = mapper.readTree("{}");
+
+        assertThat(aggregator.buildOperationSchema(operation, mapper.createObjectNode()))
+                .isNull();
+    }
+
+    @Test
+    void headerParametersAreIgnored() throws Exception {
+        JsonNode operation = mapper.readTree("""
+                {
+                  "parameters": [
+                    {"name": "X-Trace", "in": "header", "schema": {"type": "string"}}
+                  ]
+                }
+                """);
+
+        // Only query/path params count; a header-only operation yields no schema.
+        assertThat(aggregator.buildOperationSchema(operation, mapper.createObjectNode()))
+                .isNull();
+    }
+}

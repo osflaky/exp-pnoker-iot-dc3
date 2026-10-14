@@ -1,0 +1,51 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package io.github.pnoker.common.security;
+
+import io.github.pnoker.common.facade.api.PermissionFacade;
+import java.util.Set;
+import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Mono;
+
+/**
+ * {@link PermissionProvider} backed by the active facade implementation.
+ *
+ * @author pnoker
+ * @since 2016.10.1
+ */
+@RequiredArgsConstructor
+public class FacadePermissionProvider implements PermissionProvider {
+
+    private final PermissionFacade permissionFacade;
+
+    @Override
+    public Mono<Boolean> hasPermission(Long tenantId, Long principalId, String resourceCode) {
+        if (tenantId == null || principalId == null || resourceCode == null) {
+            return Mono.just(false);
+        }
+        return listPermissionCodes(tenantId, principalId)
+                .map(codes -> codes.contains(PermissionMethods.WILDCARD) || codes.contains(resourceCode));
+    }
+
+    @Override
+    public Mono<Set<String>> listPermissionCodes(Long tenantId, Long principalId) {
+        if (tenantId == null || principalId == null) {
+            return Mono.just(Set.of());
+        }
+        return permissionFacade.listPermissionCodes(tenantId, principalId);
+    }
+}

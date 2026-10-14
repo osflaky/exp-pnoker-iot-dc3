@@ -1,0 +1,278 @@
+<!--
+  - Copyright 2016-present the IoT DC3 original author or authors.
+  -
+  - This program is free software: you can redistribute it and/or modify
+  - it under the terms of the GNU Affero General Public License as
+  - published by the Free Software Foundation, either version 3 of the
+  - License, or (at your option) any later version.
+  -
+  - This program is distributed in the hope that it will be useful,
+  - but WITHOUT ANY WARRANTY; without even the implied warranty of
+  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  - GNU Affero General Public License for more details.
+  -
+  - You should have received a copy of the GNU Affero General Public License
+  - along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  -->
+
+<template>
+  <dashboard-card
+    v-model:interval="intervalMs"
+    :auto-refresh="intervalOptions"
+    :empty="status === 'success' && rows.length === 0"
+    :empty-text="$t('home.liveFeed.empty')"
+    :error="status === 'error'"
+    :error-text="$t('common.loadFailed')"
+    :loading="loading"
+    :retry-text="$t('common.retry')"
+    :title="$t('home.liveFeed.title')"
+    body-mode="scroll"
+    class="live-feed"
+    loading-target="button"
+    @refresh="refresh"
+  >
+    <el-timeline>
+      <el-timeline-item
+        v-for="row in rows"
+        :key="rowKey(row)"
+        :color="typeColor(row.valueType)"
+        :timestamp="formatTime(row.createTime)"
+        placement="top"
+      >
+        <div class="live-feed__item">
+          <div class="live-feed__line">
+            <span class="live-feed__driver">{{ displayDriver(row) }}</span>
+            <span class="live-feed__sep">/</span>
+            <span class="live-feed__device">{{ displayDevice(row) }}</span>
+            <span class="live-feed__sep">/</span>
+            <span class="live-feed__point">{{ displayPoint(row) }}</span>
+          </div>
+          <div class="live-feed__value-line">
+            <span :class="`live-feed__tag--${row.valueType?.toLowerCase() || 'string'}`" class="live-feed__tag">
+              {{ row.valueType || 'STR' }}
+            </span>
+            <span class="live-feed__value">{{ row.calValue ?? row.rawValue ?? '-' }}</span>
+          </div>
+        </div>
+      </el-timeline-item>
+    </el-timeline>
+
+    <template #footer-meta>
+      <span>{{ $t('home.liveFeed.rows', {n: rows.length}) }}</span>
+    </template>
+  </dashboard-card>
+</template>
+
+<script lang="ts" setup>
+import {computed, onMounted, ref, watch} from 'vue';
+import {useI18n} from 'vue-i18n';
+
+import {streamLatest} from '@/api/dashboard';
+import DashboardCard from '@/components/card/dashboard/DashboardCard.vue';
+import {useAsyncLoader} from '@/utils/asyncLoaderUtil';
+
+interface Row {
+  deviceId: string;
+  pointId: string;
+  driverId?: string;
+  // driverName / deviceName / pointName are populated server-side by
+  // DashboardServiceImpl.latestStream via the metadata facades, so the
+  // feed can render the full tuple without a separate lookup round-trip.
+  driverName?: string;
+  deviceName?: string;
+  pointName?: string;
+  rawValue?: string;
+  calValue?: string;
+  valueType?: string;
+  createTime?: string | Date;
+}
+
+const props = defineProps({
+  size: {type: Number, default: 20},
+});
+
+const {t, locale} = useI18n();
+
+const {loading, run, status} = useAsyncLoader();
+const rows = ref<Row[]>([]);
+const intervalMs = ref(0);
+
+const intervalOptions = computed(() => [
+  {label: t('home.liveFeed.intervalOff'), value: 0},
+  {label: '5s', value: 5000},
+  {label: '10s', value: 10000},
+  {label: '30s', value: 30000},
+]);
+
+const refresh = async () => {
+  // Auto-refresh must never stack requests; a manual refresh can still be
+  // initiated after the current request settles via the shared card button.
+  if (loading.value) return;
+  await run(() => streamLatest(props.size), {
+    apply: (res) => {
+      rows.value = Array.isArray(res) ? res : [];
+    },
+  });
+};
+
+// Show the name when the server resolved it, otherwise fall back to the
+// raw ID so deleted-but-historical rows remain legible.
+const displayDriver = (r: Row) =>
+  r.driverName || (r.driverId && String(r.driverId) !== '0' ? String(r.driverId) : '-');
+const displayDevice = (r: Row) => r.deviceName || String(r.deviceId);
+const displayPoint = (r: Row) => r.pointName || String(r.pointId);
+
+const rowKey = (r: Row) => `${r.deviceId}-${r.pointId}-${r.createTime}`;
+
+const formatTime = (v?: string | Date) => {
+  if (!v) return '';
+  const d = typeof v === 'string' ? new Date(v.replace(' ', 'T')) : v;
+  if (Number.isNaN(d.getTime())) return String(v);
+  return d.toLocaleTimeString(locale.value === 'zh' ? 'zh-CN' : 'en-US', {hour12: false});
+};
+
+const typeColor = (vt?: string) => {
+  const t = (vt || '').toLowerCase();
+  if (t === 'int' || t === 'long') return '#409eff';
+  if (t === 'float' || t === 'double') return '#67c23a';
+  if (t === 'bool') return '#e6a23c';
+  if (t === 'json') return '#9059f6';
+  // STRING / unknown — pick the neutral accent over default gray so the
+  // timeline dot still reads as "live data" instead of a placeholder.
+  return '#409eff';
+};
+
+onMounted(refresh);
+watch(locale, refresh);
+</script>
+
+<style lang="scss" scoped>
+.live-feed {
+  :deep(.el-timeline) {
+    padding: 8px 16px 0;
+  }
+
+  :deep(.el-timeline-item__wrapper) {
+    padding-left: 16px;
+  }
+
+  :deep(.el-timeline-item__timestamp) {
+    font-size: 11px;
+  }
+
+  // Tint the timeline skeleton: connecting line, default node, and the
+  // ring around coloured nodes get the same cool-blue accent so the
+  // feed reads as one continuous stream instead of disconnected dots
+  // on a gray spine.
+  :deep(.el-timeline-item__tail) {
+    border-left-color: rgba(64, 158, 255, 0.25);
+  }
+
+  :deep(.el-timeline-item__node) {
+    box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.12);
+  }
+
+  .live-feed__item {
+    padding-bottom: 4px;
+  }
+
+  .live-feed__line {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: var(--dc3-space-2);
+  }
+
+  // Per-dimension accent colours so the driver / device / point
+  // hierarchy is readable at a glance without falling back to <el-tag>
+  // chrome. Palette reuses the StatCard tones (driver=purple "promotion",
+  // device=blue "management", point=green "data") so the same entity
+  // reads the same colour everywhere on the page.
+  .live-feed__driver {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #9059f6;
+    font-weight: 500;
+  }
+
+  .live-feed__device {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #409eff;
+    font-weight: 600;
+  }
+
+  .live-feed__point {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #67c23a;
+    font-weight: 500;
+  }
+
+  .live-feed__sep {
+    flex: 0 0 auto;
+    color: #dcdfe6;
+  }
+
+  .live-feed__value-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .live-feed__tag {
+    flex: 0 0 auto;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: var(--dc3-radius-sm);
+    white-space: nowrap;
+
+    &--int,
+    &--long {
+      background: rgba(64, 158, 255, 0.1);
+      color: #409eff;
+    }
+
+    &--float,
+    &--double {
+      background: rgba(103, 194, 58, 0.1);
+      color: #67c23a;
+    }
+
+    &--bool {
+      background: rgba(230, 162, 60, 0.1);
+      color: #e6a23c;
+    }
+
+    &--json {
+      background: rgba(144, 89, 246, 0.1);
+      color: #9059f6;
+    }
+  }
+
+  .live-feed__value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: 'Menlo', monospace;
+    color: #303133;
+    font-weight: 500;
+    font-size: 12px;
+  }
+}
+</style>

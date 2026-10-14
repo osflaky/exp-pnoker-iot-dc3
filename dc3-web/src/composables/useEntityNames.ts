@@ -1,0 +1,223 @@
+/*
+ * Copyright 2016-present the IoT DC3 original author or authors.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+import {reactive} from 'vue';
+
+import {listDeviceByIds} from '@/api/device';
+import {listDriverByIds} from '@/api/driver';
+import {listPointByIds} from '@/api/point';
+import {listProfileByIds} from '@/api/profile';
+import i18n from '@/config/i18n';
+
+/**
+ * Cross-component reactive cache for entity id → display name lookups.
+ * Replaces the seven copies of `resolveNames` + local `nameMap` that every
+ * dashboard card used to maintain. Two concrete wins:
+ *
+ *   1. **Cache is process-wide and locale-aware.** Opening FlappingSources
+ *      after SilentSources reuses names resolved in the same UI language,
+ *      while a language switch cannot leak stale labels from the old locale.
+ *   2. **Inflight dedup.** Two cards mounting simultaneously won't fire two
+ *      identical listDeviceByIds calls for the same missing ids — the second
+ *      one sees ids marked inflight and waits for the first to land.
+ *
+ * Errors are swallowed silently (the axios response interceptor already
+ * surfaces toast / login-redirect for 4xx/5xx); the UI falls back to the
+ * id string rather than showing a spinner forever.
+ */
+
+type BatchResponse = Record<string, any>;
+
+type EntityKind = 'device' | 'driver' | 'profile' | 'point';
+
+// Module-level reactive caches — shared across every component that
+// imports useEntityNames(). `reactive()` at module scope is valid Vue 3
+// usage and cheaper than Pinia for this small surface.
+const cache: Record<EntityKind, Record<string, string>> = {
+  device: reactive<Record<string, string>>({}),
+  driver: reactive<Record<string, string>>({}),
+  profile: reactive<Record<string, string>>({}),
+  point: reactive<Record<string, string>>({}),
+};
+
+const inflight: Record<EntityKind, Set<string>> = {
+  device: new Set(),
+  driver: new Set(),
+  profile: new Set(),
+  point: new Set(),
+};
+
+// Track all pending batches per kind. More than one batch can be in flight
+// when callers request disjoint IDs at the same time; a single promise slot
+// would be cleared by the first batch and let later callers miss the second.
+const pending: Record<EntityKind, Set<Promise<void>>> = {
+  device: new Set(),
+  driver: new Set(),
+  profile: new Set(),
+  point: new Set(),
+};
+
+const fetchers: Record<EntityKind, (ids: string[]) => Promise<BatchResponse>> = {
+  device: (ids) => listDeviceByIds(ids) as Promise<BatchResponse>,
+  driver: (ids) => listDriverByIds(ids) as Promise<BatchResponse>,
+  profile: (ids) => listProfileByIds(ids) as Promise<BatchResponse>,
+  point: (ids) => listPointByIds(ids) as Promise<BatchResponse>,
+};
+
+// Entity payloads returned by the getXxxByIds endpoints all use a
+// "<kind>Name" field — centralised here so adding a new kind is one line.
+const nameField: Record<EntityKind, string> = {
+  device: 'deviceName',
+  driver: 'driverName',
+  profile: 'profileName',
+  point: 'pointName',
+};
+
+async function fetchMissing(kind: EntityKind, rawIds: Array<string>): Promise<void> {
+  if (!rawIds || rawIds.length === 0) return;
+  const locale = String(i18n.global.locale.value);
+  const cacheKey = (id: string) => `${locale}:${id}`;
+  const missing: string[] = [];
+  let hasInflight = false;
+  for (const raw of rawIds) {
+    const id = String(raw);
+    if (!id) continue;
+    if (cache[kind][cacheKey(id)] !== undefined) continue;
+    if (inflight[kind].has(cacheKey(id))) {
+      hasInflight = true;
+      continue;
+    }
+    missing.push(id);
+  }
+
+  // If some IDs are already being fetched by another caller, await the
+  // pending promise first — it may resolve the IDs we need. Then re-check
+  // which IDs are still missing so we only fetch the remainder.
+  if (hasInflight && pending[kind].size > 0) {
+    await Promise.all([...pending[kind]]);
+    // Re-evaluate: the pending fetch may have resolved some of our IDs
+    const stillMissing: string[] = [];
+    for (const raw of rawIds) {
+      const id = String(raw);
+      if (!id || cache[kind][cacheKey(id)] !== undefined) continue;
+      if (inflight[kind].has(cacheKey(id))) continue;
+      stillMissing.push(id);
+    }
+    if (stillMissing.length === 0) return;
+    // Merge with any newly discovered missing IDs
+    for (const id of stillMissing) {
+      if (!missing.includes(id)) missing.push(id);
+    }
+  }
+
+  if (missing.length === 0) return;
+  missing.forEach((id) => inflight[kind].add(cacheKey(id)));
+
+  const promise = (async () => {
+    try {
+      const res = await fetchers[kind](missing);
+      const data = res;
+      for (const id of missing) {
+        const row = data[id];
+        // Cache whatever the backend returned — even empty → fallback to id.
+        cache[kind][cacheKey(id)] = row?.[nameField[kind]] ?? id;
+      }
+    } catch {
+      // errors handled by global axios interceptor
+    } finally {
+      missing.forEach((id) => inflight[kind].delete(cacheKey(id)));
+    }
+  })();
+
+  pending[kind].add(promise);
+  try {
+    await promise;
+  } finally {
+    pending[kind].delete(promise);
+  }
+}
+
+/**
+ * Alert source kind union.
+ */
+export type AlertSourceKind = 'point' | 'device' | 'driver';
+
+/**
+ * Cross-component reactive cache resolving entity ids to display names
+ * (device / driver / profile / point), locale-aware and inflight-deduped.
+ * @returns the composable handle
+ */
+export const useEntityNames = () => {
+  const cachedName = (kind: EntityKind, id: string): string =>
+    cache[kind][`${String(i18n.global.locale.value)}:${String(id)}`] ?? String(id);
+
+  const resolveDevices = (ids: Array<string>) => fetchMissing('device', ids);
+  const resolveDrivers = (ids: Array<string>) => fetchMissing('driver', ids);
+  const resolveProfiles = (ids: Array<string>) => fetchMissing('profile', ids);
+  const resolvePoints = (ids: Array<string>) => fetchMissing('point', ids);
+
+  const deviceName = (id: string | undefined | null): string =>
+    id == null ? '' : cachedName('device', id);
+  const driverName = (id: string | undefined | null): string =>
+    id == null ? '' : cachedName('driver', id);
+  const profileName = (id: string | undefined | null): string =>
+    id == null ? '' : cachedName('profile', id);
+  const pointName = (id: string | undefined | null): string =>
+    id == null ? '' : cachedName('point', id);
+
+  /**
+   * Resolve a mixed batch of (source, id) rows in one call.
+   * @param rows - table rows to transform
+   */
+  const resolveBySource = async (
+    rows: Array<{
+      source: AlertSourceKind;
+      sourceId: string;
+    }>
+  ): Promise<void> => {
+    const pointIds: Array<string> = [];
+    const deviceIds: Array<string> = [];
+    const driverIds: Array<string> = [];
+    for (const r of rows) {
+      if (r.source === 'point') pointIds.push(r.sourceId);
+      else if (r.source === 'device') deviceIds.push(r.sourceId);
+      else driverIds.push(r.sourceId);
+    }
+    await Promise.all([resolvePoints(pointIds), resolveDevices(deviceIds), resolveDrivers(driverIds)]);
+  };
+
+  const nameBySource = (source: AlertSourceKind, id: string): string => {
+    if (source === 'point') return pointName(id);
+    if (source === 'driver') return driverName(id);
+    return deviceName(id);
+  };
+
+  return {
+    // single-kind
+    resolveDevices,
+    resolveDrivers,
+    resolveProfiles,
+    resolvePoints,
+    deviceName,
+    driverName,
+    profileName,
+    pointName,
+    // source-aware
+    resolveBySource,
+    nameBySource,
+  };
+};
